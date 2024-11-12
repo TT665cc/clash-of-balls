@@ -6,7 +6,7 @@
 
 #define PI 3.14159265358979323846
 
-const int BALL_SIZE = 70;
+const int BALL_SIZE = 10;
 const int SCREEN_WIDTH = 480;
 const int SCREEN_HEIGHT = 854;
 const int FRAME_RATE = 64;
