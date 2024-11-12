@@ -6,7 +6,7 @@
 
 #define PI 3.14159265358979323846
 
-const int BALL_SIZE = 10;
+const int BALL_SIZE = 50;
 const int SCREEN_WIDTH = 480;
 const int SCREEN_HEIGHT = 854;
 const int FRAME_RATE = 64;
@@ -15,6 +15,7 @@ const float DT = 1000.0f / FRAME_RATE;
 typedef struct {
     SDL_Rect rect; /* Position et taille de la boule */
     int speedX, speedY; /* Vitesse de la boule */
+    SDL_Texture* texture; /* Texture de la boule */
 } Ball;
 
 typedef struct {
@@ -23,10 +24,10 @@ typedef struct {
 
 /* Prototypes des fonctions */
 int initSDL();
-void createBall(Ball* ball, int num_ball, Vect* positions);
+void createBall(Ball* ball, int size, Vect positions, SDL_Texture* texture);
 void updateBall(Ball* ball, Ball* balls, int num_boule_actuelle, int nb_balls);
-void drawBall(SDL_Renderer* renderer, SDL_Texture* texture, Ball* ball);
-void cleanup(SDL_Window* window, SDL_Renderer* renderer, SDL_Texture* texture, Ball* balls, int ballCount);
+void drawBall(SDL_Renderer* renderer, Ball* ball);
+void cleanup(SDL_Window* window, SDL_Renderer* renderer, SDL_Texture* texture1, SDL_Texture* texture2, Ball* balls, int ballCount);
 
 int main(int argc, char* argv[]) {
     srand(time(NULL));
@@ -40,26 +41,30 @@ int main(int argc, char* argv[]) {
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
     /* Charger l'image pour les boules */
-    SDL_Surface* imageSurface = SDL_LoadBMP("image.bmp");
-    if (!imageSurface) {
+    SDL_Surface* imageSurfaceRouge = SDL_LoadBMP("boule_rouge.bmp");
+    SDL_Surface* imageSurfaceBleu = SDL_LoadBMP("boule_bleu.bmp");
+    if (!imageSurfaceRouge) {
         printf("Erreur de chargement de l'image: %s\n", SDL_GetError());
-        cleanup(window, renderer, NULL, NULL, 0);
+        cleanup(window, renderer, NULL, NULL, NULL, 0);
         return -1;
     }
-    SDL_Texture* imageTexture = SDL_CreateTextureFromSurface(renderer, imageSurface);
-    SDL_FreeSurface(imageSurface);
-
-    /* Positions initiales des boules rouges*/
-    Vect positions[] = {
-        {50, 50}, {100, 150}, {200, 250}, {300, 350}, {400, 450}, {100, 600}, {300, 700}, {200, 500}, {400, 300}
-    };
-    int ballCount = sizeof(positions) / sizeof(positions[0]);
+    if (!imageSurfaceBleu) {
+        printf("Erreur de chargement de l'image: %s\n", SDL_GetError());
+        cleanup(window, renderer, NULL, NULL, NULL, 0);
+        return -1;
+    }
+    SDL_Texture* imageTexture_bouleRouge = SDL_CreateTextureFromSurface(renderer, imageSurfaceRouge);
+    SDL_Texture* imageTexture_bouleBleu = SDL_CreateTextureFromSurface(renderer, imageSurfaceBleu);
+    SDL_FreeSurface(imageSurfaceRouge);
+    SDL_FreeSurface(imageSurfaceBleu);
 
     /* Allocation et génération des boules */
-    Ball* balls = (Ball*)malloc(ballCount * sizeof(Ball));
-    for (int i = 0; i < ballCount; i++) {
-        createBall(&balls[i], i, positions);
-    }
+    int maxBalls = 50;
+    Ball* balls = (Ball*)malloc(maxBalls * sizeof(Ball));
+    Vect pos_depart_rouge = {100, 100};
+    Vect pos_depart_bleu = {200, 200};
+    createBall(&balls[0], 50, pos_depart_rouge, imageTexture_bouleRouge);
+    createBall(&balls[1], 50, pos_depart_bleu, imageTexture_bouleBleu);
 
     /* Boucle principale */
     bool isRunning = true;
@@ -74,8 +79,8 @@ int main(int argc, char* argv[]) {
         }
 
         /* Mise à jour des boules */
-        for (int i = 0; i < ballCount; i++) {
-            updateBall(&balls[i], balls, i, ballCount);
+        for (int i = 0; i < maxBalls; i++) {
+            updateBall(&balls[i], balls, i, maxBalls);
         }
 
         /* Rafraîchissement de l'écran */
@@ -83,8 +88,8 @@ int main(int argc, char* argv[]) {
         SDL_RenderClear(renderer);
 
         /* Dessiner les boules */
-        for (int i = 0; i < ballCount; i++) {
-            drawBall(renderer, imageTexture, &balls[i]);
+        for (int i = 0; i < maxBalls; i++) {
+            drawBall(renderer, &balls[i]);
         }
 
         SDL_RenderPresent(renderer);
@@ -99,7 +104,7 @@ int main(int argc, char* argv[]) {
     }
 
     /* Libération des ressources */
-    cleanup(window, renderer, imageTexture, balls, ballCount);
+    cleanup(window, renderer, imageTexture_bouleRouge, imageTexture_bouleBleu, balls, maxBalls);
 
     return 0;
 }
@@ -112,12 +117,13 @@ int initSDL() {
     return 0;
 }
 
-void createBall(Ball* ball, int num_ball, Vect* positions) {
+void createBall(Ball* ball, int size, Vect positions, SDL_Texture* texture) {
     /* Initialiser la position de la boule avec les coordonnées fournies */
-    ball->rect.w = BALL_SIZE;
-    ball->rect.h = BALL_SIZE;
-    ball->rect.x = positions[num_ball].x;
-    ball->rect.y = positions[num_ball].y;
+    ball->rect.w = size;
+    ball->rect.h = size;
+    ball->rect.x = positions.x;
+    ball->rect.y = positions.y;
+    ball->texture = texture;
 
     /* Initialiser la vitesse de la boule avec des valeurs aléatoires */
     ball->speedX = (rand() % 2 == 0 ? 1 : -1) * (rand() % 7 + 1);
@@ -167,16 +173,19 @@ void updateBall(Ball* ball, Ball* balls, int num_boule_actuelle, int nb_balls) {
     }
 }
 
-void drawBall(SDL_Renderer* renderer, SDL_Texture* texture, Ball* ball) {
-    SDL_RenderCopy(renderer, texture, NULL, &ball->rect);
+void drawBall(SDL_Renderer* renderer, Ball* ball) {
+    SDL_RenderCopy(renderer, ball->texture, NULL, &ball->rect);
 }
 
-void cleanup(SDL_Window* window, SDL_Renderer* renderer, SDL_Texture* texture, Ball* balls, int ballCount) {
+void cleanup(SDL_Window* window, SDL_Renderer* renderer, SDL_Texture* texture1, SDL_Texture* texture2, Ball* balls, int ballCount) {
     if (balls) {
         free(balls);
     }
-    if (texture) {
-        SDL_DestroyTexture(texture);
+    if (texture1) {
+        SDL_DestroyTexture(texture1);
+    }
+    if (texture2) {
+        SDL_DestroyTexture(texture2);
     }
     if (renderer) {
         SDL_DestroyRenderer(renderer);
