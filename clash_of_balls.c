@@ -1,3 +1,5 @@
+/* gcc clash_of_balls.c -o clash_of_balls -lSDL2 -lm */
+
 #include <SDL2/SDL.h>
 #include <stdlib.h>
 #include <time.h>
@@ -13,14 +15,14 @@ const int FRAME_RATE = 64;
 const float DT = 1000.0f / FRAME_RATE;
 
 typedef struct {
-    SDL_Rect rect; /* Position et taille de la boule */
-    int speedX, speedY; /* Vitesse de la boule */
-    SDL_Texture* texture; /* Texture de la boule */
-} Ball;
-
-typedef struct {
     int x, y; /* Coordonnées pour les calculs de vecteurs */
 } Vect;
+
+typedef struct {
+    SDL_Rect rect; /* Position et taille de la boule */
+    Vect speed; /* Vitesse de la boule */
+    SDL_Texture* texture; /* Texture de la boule */
+} Ball;
 
 /* Prototypes des fonctions */
 int initSDL();
@@ -128,8 +130,7 @@ void createBall(Ball* ball, int size, Vect positions, Vect speed, SDL_Texture* t
     ball->texture = texture;
 
     /* Initialiser la vitesse de la boule avec des valeurs aléatoires */
-    ball->speedX = speed.x;
-    ball->speedY = speed.y;
+    ball->speed = speed;
 }
 
 Vect posCenter(Ball* ball) {
@@ -145,16 +146,31 @@ double distance(Ball* ball1, Ball* ball2) {
     return sqrt((m1.x - m2.x) * (m1.x - m2.x) + (m1.y - m2.y) * (m1.y - m2.y));
 }
 
+void calculer_collision(Vect vA_i, Vect vB_i, double mA, double mB, Vect *vA_f, Vect *vB_f) {
+    // Calcul de la différence de position et de vitesse
+    Vect delta_v = {vA_i.x - vB_i.x, vA_i.y - vB_i.y};
+    double dist2 = delta_v.x * delta_v.x + delta_v.y * delta_v.y;
+
+    // Calcul du produit scalaire entre delta_v et delta_r
+    double scalar = 2.0 * mB / (mA + mB) * ((delta_v.x * (vA_i.x - vB_i.x) + delta_v.y * (vA_i.y - vB_i.y)) / dist2);
+
+    // Calcul des nouvelles vitesses
+    vA_f->x = vA_i.x - scalar * (vA_i.x - vB_i.x);
+    vA_f->y = vA_i.y - scalar * (vA_i.y - vB_i.y);
+    vB_f->x = vB_i.x + scalar * (vA_i.x - vB_i.x);
+    vB_f->y = vB_i.y + scalar * (vA_i.y - vB_i.y);
+}
+
 void updateBall(Ball* ball, Ball* balls, int num_boule_actuelle, int nb_balls) {
     int diametre = ball->rect.w;
-    ball->rect.x += ball->speedX;
-    ball->rect.y += ball->speedY;
+    ball->rect.x += ball->speed.x;
+    ball->rect.y += ball->speed.y;
 
     if (ball->rect.x <= 0 || ball->rect.x + ball->rect.w >= SCREEN_WIDTH) {
-        ball->speedX = -ball->speedX;
+        ball->speed.x = -ball->speed.x;
     }
     if (ball->rect.y <= 0 || ball->rect.y + ball->rect.h >= SCREEN_HEIGHT) {
-        ball->speedY = -ball->speedY;
+        ball->speed.y = -ball->speed.y;
     }
 
     for (int i = 0; i < nb_balls; i++) {
@@ -163,13 +179,11 @@ void updateBall(Ball* ball, Ball* balls, int num_boule_actuelle, int nb_balls) {
             double dist = distance(ball, other);
 
             if (dist <= diametre) {
-                int tempSpeedX = ball->speedX;
-                int tempSpeedY = ball->speedY;
-
-                ball->speedX = other->speedX;
-                ball->speedY = other->speedY;
-                other->speedX = tempSpeedX;
-                other->speedY = tempSpeedY;
+                Vect vA_f;
+                Vect vB_f;
+                calculer_collision(ball->speed, other->speed, 1, 1, &vA_f, &vB_f);
+                ball->speed = vA_f;
+                other->speed = vB_f;
             }
         }
     }
