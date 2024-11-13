@@ -6,7 +6,7 @@
 
 #define PI 3.14159265358979323846
 
-const int BALL_SIZE = 50;
+const int BALL_SIZE = 300;
 const int SCREEN_WIDTH = 480;
 const int SCREEN_HEIGHT = 854;
 const int FRAME_RATE = 64;
@@ -24,7 +24,7 @@ typedef struct {
 
 /* Prototypes des fonctions */
 int initSDL();
-void createBall(Ball* ball, int size, Vect positions, SDL_Texture* texture);
+void createBall(Ball* ball, int size, Vect positions, Vect speed, SDL_Texture* texture);
 void updateBall(Ball* ball, Ball* balls, int num_boule_actuelle, int nb_balls);
 void drawBall(SDL_Renderer* renderer, Ball* ball);
 void cleanup(SDL_Window* window, SDL_Renderer* renderer, SDL_Texture* texture1, SDL_Texture* texture2, Ball* balls, int ballCount);
@@ -63,8 +63,10 @@ int main(int argc, char* argv[]) {
     Ball* balls = (Ball*)malloc(maxBalls * sizeof(Ball));
     Vect pos_depart_rouge = {100, 100};
     Vect pos_depart_bleu = {200, 200};
-    createBall(&balls[0], 50, pos_depart_rouge, imageTexture_bouleRouge);
-    createBall(&balls[1], 50, pos_depart_bleu, imageTexture_bouleBleu);
+    Vect v_depart_rouge = {0, 0};
+    Vect v_depart_bleu = {6, 6};
+    createBall(&balls[0], 50, pos_depart_rouge, v_depart_bleu, imageTexture_bouleRouge);
+    createBall(&balls[1], 50, pos_depart_bleu, v_depart_rouge, imageTexture_bouleBleu);
 
     /* Boucle principale */
     bool isRunning = true;
@@ -117,7 +119,7 @@ int initSDL() {
     return 0;
 }
 
-void createBall(Ball* ball, int size, Vect positions, SDL_Texture* texture) {
+void createBall(Ball* ball, int size, Vect positions, Vect speed, SDL_Texture* texture) {
     /* Initialiser la position de la boule avec les coordonnées fournies */
     ball->rect.w = size;
     ball->rect.h = size;
@@ -126,8 +128,8 @@ void createBall(Ball* ball, int size, Vect positions, SDL_Texture* texture) {
     ball->texture = texture;
 
     /* Initialiser la vitesse de la boule avec des valeurs aléatoires */
-    ball->speedX = (rand() % 2 == 0 ? 1 : -1) * (rand() % 7 + 1);
-    ball->speedY = (rand() % 2 == 0 ? 1 : -1) * (rand() % 7 + 1);
+    ball->speedX = speed.x;
+    ball->speedY = speed.y;
 }
 
 Vect posCenter(Ball* ball) {
