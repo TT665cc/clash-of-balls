@@ -61,14 +61,15 @@ int main(int argc, char* argv[]) {
     SDL_FreeSurface(imageSurfaceBleu);
 
     /* Allocation et génération des boules */
-    int maxBalls = 50;
+    int maxBalls = 3;
     Ball* balls = (Ball*)malloc(maxBalls * sizeof(Ball));
     Vect pos_depart_rouge = {100, 100};
     Vect pos_depart_bleu = {200, 200};
-    Vect v_depart_rouge = {0, 0};
+    Vect v_depart_rouge = {5, -4};
     Vect v_depart_bleu = {6, 6};
-    createBall(&balls[0], 50, pos_depart_rouge, v_depart_bleu, imageTexture_bouleRouge);
-    createBall(&balls[1], 50, pos_depart_bleu, v_depart_rouge, imageTexture_bouleBleu);
+    createBall(&balls[0], 50, pos_depart_bleu, v_depart_bleu, imageTexture_bouleBleu);
+    createBall(&balls[1], 50, pos_depart_rouge, v_depart_rouge, imageTexture_bouleRouge);
+    createBall(&balls[2], 50, (Vect){300, 150}, v_depart_rouge, imageTexture_bouleRouge);
 
     /* Boucle principale */
     bool isRunning = true;
@@ -166,12 +167,24 @@ void updateBall(Ball* ball, Ball* balls, int num_boule_actuelle, int nb_balls) {
     ball->rect.x += ball->speed.x;
     ball->rect.y += ball->speed.y;
 
-    if (ball->rect.x <= 0 || ball->rect.x + ball->rect.w >= SCREEN_WIDTH) {
+    if (ball->rect.x <= 0) {
         ball->speed.x = -ball->speed.x;
+        ball->rect.x += 5;
     }
-    if (ball->rect.y <= 0 || ball->rect.y + ball->rect.h >= SCREEN_HEIGHT) {
+    if (ball->rect.x + ball->rect.w >= SCREEN_WIDTH) {
+        ball->speed.x = -ball->speed.x;
+        ball->rect.x -= 5;
+    }
+    if (ball->rect.y <= 0) {
         ball->speed.y = -ball->speed.y;
+        ball->rect.y += 5;
     }
+    if (ball->rect.y + ball->rect.h >= SCREEN_HEIGHT)
+    {
+        ball->speed.y = -ball->speed.y;
+        ball->rect.y -= 5;
+    }
+    
 
     for (int i = 0; i < nb_balls; i++) {
         if (i != num_boule_actuelle) {
