@@ -3,14 +3,11 @@
 #include <SDL2/SDL.h>
 #include <stdlib.h>
 #include <time.h>
-#include <stdbool.h>
 #include <math.h>
 
 #define bool _Bool
 #define true 1
 #define false 0
-
-#define PI 3.14159265358979323846
 
 const int BALL_SIZE = 300;
 const int SCREEN_WIDTH = 480;
@@ -33,81 +30,78 @@ typedef struct
     int colliding;
 } Ball;
 
-/* Prototypes des fonctions */
-int initSDL();
 void createBall(Ball *ball, int size, double mass, Vect position, Vect speed, SDL_Texture *texture);
 void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int nb_balls);
 void drawBall(SDL_Renderer *renderer, Ball *ball);
-void cleanup(SDL_Window *window, SDL_Renderer *renderer, SDL_Texture *texture1, SDL_Texture *texture2, Ball *balls, int ballCount);
-void addVect(Vect v1, Vect v2, double coeff, Vect *dest);
-double dot(Vect v1, Vect v2);
-double norm(Vect v);
+void cleanup(SDL_Window *window, SDL_Renderer *renderer, int nb_textures, SDL_Texture **textures, Ball *balls, int ballCount);
+Vect posCenter(Ball *ball);
+double distance(Ball *ball1, Ball *ball2);
 void calculer_collision(Ball *b1, Ball *b2, Vect *vA_f, Vect *vB_f);
+double norm(Vect v);
+double dot(Vect v1, Vect v2);
+
+
+
+int initSDL()
+{
+    if (SDL_Init(SDL_INIT_VIDEO) < 0)
+    {
+        printf("Erreur d'initialisation de SDL: %s\n", SDL_GetError());
+        return -1;
+    }
+    return 0;
+}
 
 int main(int argc, char *argv[])
 {
-    srand(time(NULL));
 
     if (initSDL() < 0)
     {
         return -1;
     }
 
+    int maxBalls = 50;
+    int nb_balls = 4;
+
+    char imgs[4][30] = {
+        "./img/boule_rouge.bmp",
+        "./img/boule_bleu.bmp",
+        "./img/boule_verte.bmp",
+        "./img/boule_bleu_clair.bmp"
+    };
+
+    SDL_Texture **textures = malloc(sizeof(SDL_Texture*) * 4);
+
+
     /* Création de la fenêtre et du renderer */
     SDL_Window *window = SDL_CreateWindow("Clash_of_balls", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
     /* Charger l'image pour les boules */
-    SDL_Surface *imageSurfaceRouge = SDL_LoadBMP("./img/boule_rouge.bmp");
-    SDL_Surface *imageSurfaceBleu = SDL_LoadBMP("./img/boule_bleu.bmp");
-    SDL_Surface *imageSurfaceVerte = SDL_LoadBMP("./img/boule_verte.bmp");
-    SDL_Surface *imageSurfaceBleuClair = SDL_LoadBMP("./img/boule_bleu_clair.bmp");
-    if (!imageSurfaceRouge)
-    {
-        printf("Erreur de chargement de l'image: %s\n", SDL_GetError());
-        cleanup(window, renderer, NULL, NULL, NULL, 0);
-        return -1;
+
+    for(int i = 0; i < 4; i++) {
+        SDL_Surface *surf = SDL_LoadBMP(imgs[i]);
+        if (!surf)
+        {
+            printf("Erreur de chargement de l'image: %s\n", SDL_GetError());
+            cleanup(window, renderer, 4, textures, NULL, 0);
+            return -1;
+        }
+        SDL_Texture *imageTexture = SDL_CreateTextureFromSurface(renderer, surf);
+        
+        SDL_FreeSurface(surf);
+        textures[i] = imageTexture;
+
     }
-    if (!imageSurfaceBleu)
-    {
-        printf("Erreur de chargement de l'image: %s\n", SDL_GetError());
-        cleanup(window, renderer, NULL, NULL, NULL, 0);
-        return -1;
-    }
-    if (!imageSurfaceVerte)
-    {
-        printf("Erreur de chargement de l'image: %s\n", SDL_GetError());
-        cleanup(window, renderer, NULL, NULL, NULL, 0);
-        return -1;
-    }
-    if (!imageSurfaceBleuClair)
-    {
-        printf("Erreur de chargement de l'image: %s\n", SDL_GetError());
-        cleanup(window, renderer, NULL, NULL, NULL, 0);
-        return -1;
-    }
-    SDL_Texture *imageTexture_bouleRouge = SDL_CreateTextureFromSurface(renderer, imageSurfaceRouge);
-    SDL_Texture *imageTexture_bouleBleu = SDL_CreateTextureFromSurface(renderer, imageSurfaceBleu);
-    SDL_Texture *imageTexture_bouleVerte = SDL_CreateTextureFromSurface(renderer, imageSurfaceVerte);
-    SDL_Texture *imageTexture_bouleBleuClair = SDL_CreateTextureFromSurface(renderer, imageSurfaceBleuClair);
-    SDL_FreeSurface(imageSurfaceRouge);
-    SDL_FreeSurface(imageSurfaceBleu);
-    SDL_FreeSurface(imageSurfaceVerte);
-    SDL_FreeSurface(imageSurfaceBleuClair);
 
     /* Allocation et génération des boules */
-    int maxBalls = 4;
+    
     Ball *balls = malloc(maxBalls * sizeof(Ball));
-    if (!balls)
-    {
-        printf("Erreur d'allocation de mémoire\n");
-        cleanup(window, renderer, imageTexture_bouleRouge, imageTexture_bouleBleu, NULL, 0);
-        return -1;
-    }
-    createBall(&balls[0], 50, 10, (Vect) {100.0, 100.0}, (Vect) {600.0, 900.0}, imageTexture_bouleRouge);
-    createBall(&balls[1], 60, 20, (Vect) {300.0, 200.0}, (Vect) {0.0, 0.0}, imageTexture_bouleBleu);
-    createBall(&balls[2], 90, 100, (Vect) {400.0, 300.0}, (Vect) {0.0, 0.0}, imageTexture_bouleVerte);
-    createBall(&balls[3], 60, 20, (Vect) {300.0, 500.0}, (Vect) {0.0, 0.0}, imageTexture_bouleBleuClair);
+
+    createBall(&balls[0], 50, 10, (Vect) {100.0, 100.0}, (Vect) {600.0, 900.0}, textures[0]);
+    createBall(&balls[1], 60, 20, (Vect) {300.0, 200.0}, (Vect) {0.0, 0.0}, textures[1]);
+    createBall(&balls[2], 90, 800, (Vect) {400.0, 300.0}, (Vect) {-100.0, 40.0}, textures[2]);
+    createBall(&balls[3], 60, 20, (Vect) {300.0, 500.0}, (Vect) {0.0, 0.0}, textures[3]);
 
     /* Boucle principale */
     bool isRunning = true;
@@ -125,12 +119,20 @@ int main(int argc, char *argv[])
             {
                 isRunning = false;
             }
+            else if (event.type == SDL_MOUSEBUTTONDOWN) {
+                if (event.button.button == SDL_BUTTON_LEFT) {
+                    createBall(&balls[nb_balls++], 60, 20, (Vect) {event.button.x - 30, event.button.y - 30}, (Vect) {100.0, -50.0}, textures[0]);
+                    printf("Clic gauche détecté en (%d, %d)\n", event.button.x, event.button.y);
+                } else if (event.button.button == SDL_BUTTON_RIGHT) {
+                    printf("Clic droit détecté en (%d, %d)\n", event.button.x, event.button.y);
+                }
+            }
         }
 
         /* Mise à jour des boules */
-        for (int i = 0; i < maxBalls; i++)
+        for (int i = 0; i < nb_balls; i++)
         {
-            updateBall(elapsedTime, &balls[i], balls, i, maxBalls);
+            updateBall(elapsedTime, &balls[i], balls, i, nb_balls);
         }
 
         /* Rafraîchissement de l'écran */
@@ -138,7 +140,7 @@ int main(int argc, char *argv[])
         SDL_RenderClear(renderer);
 
         /* Dessiner les boules */
-        for (int i = 0; i < maxBalls; i++)
+        for (int i = 0; i < nb_balls; i++)
         {
             drawBall(renderer, &balls[i]);
         }
@@ -169,18 +171,8 @@ int main(int argc, char *argv[])
     }
 
     /* Libération des ressources */
-    cleanup(window, renderer, imageTexture_bouleRouge, imageTexture_bouleBleu, balls, maxBalls);
+    cleanup(window, renderer, 4, textures, balls, maxBalls);
 
-    return 0;
-}
-
-int initSDL()
-{
-    if (SDL_Init(SDL_INIT_VIDEO) < 0)
-    {
-        printf("Erreur d'initialisation de SDL: %s\n", SDL_GetError());
-        return -1;
-    }
     return 0;
 }
 
@@ -292,30 +284,29 @@ void drawBall(SDL_Renderer *renderer, Ball *ball)
     SDL_RenderCopy(renderer, ball->texture, NULL, &ball->rect);
 }
 
-void cleanup(SDL_Window *window, SDL_Renderer *renderer, SDL_Texture *texture1, SDL_Texture *texture2, Ball *balls, int ballCount)
+void cleanup(SDL_Window *window, SDL_Renderer *renderer, int nb_textures, SDL_Texture **textures, Ball *balls, int ballCount)
 {
-    if (balls)
-    {
+    int i;
+    if (textures) {
+        for (i = 0; i < nb_textures; i++) {
+            if (textures[i]) {
+                SDL_DestroyTexture(textures[i]);  // Correct: utiliser SDL_DestroyTexture
+            }
+        }
+        free(textures);
+    }
+    if (balls) {
         free(balls);
     }
-    if (texture1)
-    {
-        SDL_DestroyTexture(texture1);
-    }
-    if (texture2)
-    {
-        SDL_DestroyTexture(texture2);
-    }
-    if (renderer)
-    {
+    if (renderer) {
         SDL_DestroyRenderer(renderer);
     }
-    if (window)
-    {
+    if (window) {
         SDL_DestroyWindow(window);
     }
     SDL_Quit();
 }
+
 
 void addVect(Vect v1, Vect v2, double coeff, Vect *dest)
 {
