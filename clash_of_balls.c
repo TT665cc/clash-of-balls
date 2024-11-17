@@ -5,15 +5,19 @@
 #include <time.h>
 #include <math.h>
 
+// Déclarations et définitions inchangées
+
+const int ARENA_WIDTH = 480;   // Largeur de l'arène
+const int ARENA_HEIGHT = 854;  // Hauteur de l'arène
+const int SCREEN_WIDTH = 1400;  // Largeur de la fenêtre
+const int SCREEN_HEIGHT = 950; // Hauteur de la fenêtre
+const int BALL_SIZE = 300;
+const int FRAME_RATE = 100;
+const float DT = 1000.0f / FRAME_RATE;
+
 #define bool _Bool
 #define true 1
 #define false 0
-
-const int BALL_SIZE = 300;
-const int SCREEN_WIDTH = 480;
-const int SCREEN_HEIGHT = 854;
-const int FRAME_RATE = 100;
-const float DT = 1000.0f / FRAME_RATE;
 
 typedef struct
 {
@@ -67,7 +71,7 @@ int main(int argc, char *argv[])
     }
 
     int maxBalls = 100;
-    int num_balls_list[maxBalls]; /* num_balls_list[i]==0 ssi boule i est présente sur terrain */
+    int num_balls_list[maxBalls];
     for (int i = 0; i < maxBalls; i++) {
         num_balls_list[i] = 0;
     }
@@ -81,13 +85,11 @@ int main(int argc, char *argv[])
 
     SDL_Texture **textures = malloc(sizeof(SDL_Texture*) * 4);
 
-
-    /* Création de la fenêtre et du renderer */
+    // Création de la fenêtre
     SDL_Window *window = SDL_CreateWindow("Clash_of_balls", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-    /* Charger l'image pour les boules */
-
+    // Charger les textures
     for(int i = 0; i < 4; i++) {
         SDL_Surface *surf = SDL_LoadBMP(imgs[i]);
         if (!surf)
@@ -97,22 +99,17 @@ int main(int argc, char *argv[])
             return -1;
         }
         SDL_Texture *imageTexture = SDL_CreateTextureFromSurface(renderer, surf);
-        
         SDL_FreeSurface(surf);
         textures[i] = imageTexture;
-
     }
 
-    /* Allocation et génération des boules */
-    
     Ball *balls = malloc(maxBalls * sizeof(Ball));
 
+    // Ajouter quelques boules initiales
     createBall(balls, 50, 10, (Vect) {100.0, 100.0}, (Vect) {600.0, 900.0}, textures[0], num_balls_list, maxBalls);
     createBall(balls, 60, 20, (Vect) {300.0, 200.0}, (Vect) {0.0, 0.0}, textures[1], num_balls_list, maxBalls);
     createBall(balls, 90, 800, (Vect) {400.0, 300.0}, (Vect) {-100.0, 40.0}, textures[2], num_balls_list, maxBalls);
-    createBall(balls, 60, 20, (Vect) {300.0, 500.0}, (Vect) {0.0, 0.0}, textures[3], num_balls_list, maxBalls);
 
-    /* Boucle principale */
     bool isRunning = true;
     SDL_Event event;
     Uint64 lastTime = SDL_GetTicks();
@@ -129,41 +126,67 @@ int main(int argc, char *argv[])
                 isRunning = false;
             }
             else if (event.type == SDL_MOUSEBUTTONDOWN) {
-                if (event.button.button == SDL_BUTTON_LEFT && canAppear((Vect) {event.button.x - 30, event.button.y - 30}, 60, 60, balls, maxBalls)) {
-                    createBall(balls, 60, 20, (Vect) {event.button.x - 30, event.button.y - 30}, (Vect) {100.0, -50.0}, textures[0], num_balls_list, maxBalls);
+                int mouseXInArena = event.button.x - (SCREEN_WIDTH - ARENA_WIDTH) / 10;
+                int mouseYInArena = event.button.y - (SCREEN_HEIGHT - ARENA_HEIGHT) / 2;
+
+                if (event.button.button == SDL_BUTTON_LEFT &&
+                    canAppear((Vect) {mouseXInArena - 30, mouseYInArena - 30}, 60, 60, balls, maxBalls)) {
+                    createBall(balls, 60, 20,
+                               (Vect) {mouseXInArena - 30, mouseYInArena - 30},
+                               (Vect) {100.0, -50.0}, textures[0], num_balls_list, maxBalls);
                     printf("Clic gauche détecté en (%d, %d)\n", event.button.x, event.button.y);
                 }
             }
         }
 
-        /* Mise à jour des boules */
+        // Mise à jour des boules
         updateBalls(elapsedTime, balls, maxBalls, num_balls_list);
 
-        /* Rafraîchissement de l'écran */
-        SDL_SetRenderDrawColor(renderer, 0, 0, 100, 255);
+        // Rendu
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Fond noir pour toute la fenêtre
         SDL_RenderClear(renderer);
 
-        /* Dessiner les boules */
+        // Affichage de la bordure autour de l'arène
+        SDL_Rect borderRect = { 
+            (SCREEN_WIDTH - ARENA_WIDTH) / 10 - 10, 
+            (SCREEN_HEIGHT - ARENA_HEIGHT) / 2 - 10, 
+            ARENA_WIDTH + 20, 
+            ARENA_HEIGHT + 20 
+        };
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // Blanc
+        SDL_RenderDrawRect(renderer, &borderRect);
+
+        // Configurer le viewport pour l'arène
+        SDL_Rect arenaViewport = {
+            .x = (SCREEN_WIDTH - ARENA_WIDTH) / 10,
+            .y = (SCREEN_HEIGHT - ARENA_HEIGHT) / 2,
+            .w = ARENA_WIDTH,
+            .h = ARENA_HEIGHT
+        };
+        SDL_RenderSetViewport(renderer, &arenaViewport);
+
+        // Dessiner le fond de l'arène
+        SDL_SetRenderDrawColor(renderer, 0, 0, 100, 255);
+        SDL_RenderFillRect(renderer, NULL);
+
+        // Dessiner les boules
         drawBalls(renderer, balls, maxBalls, num_balls_list);
+
+        // Réinitialiser le viewport pour dessiner des éléments extérieurs
+        SDL_RenderSetViewport(renderer, NULL);
+
+        // Exemple d'affichage de texte ou éléments (ajouter une fonction de dessin si nécessaire)
+        // drawText(renderer, "Score: 0", 10, 10);
 
         SDL_RenderPresent(renderer);
 
-        /* Contrôle du framerate */
+        // Gestion du framerate
         Uint64 currentTime = SDL_GetTicks64();
         elapsedTime = currentTime - frameTime;
-        /*if (elapsedTime < DT)
-        {
-            SDL_Delay((int)(DT - elapsedTime));
-        }*/
         frameCount++;
 
-        // Every second, display the FPS (frame count since the last second)
-
-        if (currentTime - lastTime >= 5000)
-        {
+        if (currentTime - lastTime >= 5000) {
             printf("FPS: %d\n", frameCount / 5);
-
-        
             frameCount = 0;
             lastTime = currentTime;
         }
@@ -171,7 +194,6 @@ int main(int argc, char *argv[])
         frameTime = SDL_GetTicks64();
     }
 
-    /* Libération des ressources */
     cleanup(window, renderer, 4, textures, balls);
 
     return 0;
@@ -245,11 +267,11 @@ void calculer_collision(Ball *b1, Ball *b2, Vect *vA_f, Vect *vB_f)
 }
 
 bool canAppear(Vect position, int width, int height, Ball* balls, int max_balls) {
-    if ((position.x <= 0) || (position.x + width >= SCREEN_WIDTH))
+    if ((position.x <= 0) || (position.x + width >= ARENA_WIDTH))
         {
             return false;
         }
-    if ((position.y <= 0) || (position.y + height >= SCREEN_HEIGHT))
+    if ((position.y <= 0) || (position.y + height >= ARENA_HEIGHT))
         {
             return false;
         }
@@ -277,11 +299,11 @@ void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int 
     ball->rect.x = floor(ball->position.x);
     ball->rect.y = floor(ball->position.y);
 
-    if ((ball->rect.x <= 0 && ball->speed.x < 0) || (ball->rect.x + ball->rect.w >= SCREEN_WIDTH && ball->speed.x > 0))
+    if ((ball->rect.x <= 0 && ball->speed.x < 0) || (ball->rect.x + ball->rect.w >= ARENA_WIDTH && ball->speed.x > 0))
     {
         ball->speed.x *= -1;
     }
-    if ((ball->rect.y <= 0 && ball->speed.y < 0) || (ball->rect.y + ball->rect.h >= SCREEN_HEIGHT && ball->speed.y > 0))
+    if ((ball->rect.y <= 0 && ball->speed.y < 0) || (ball->rect.y + ball->rect.h >= ARENA_HEIGHT && ball->speed.y > 0))
     {
         ball->speed.y *= -1;
     }
