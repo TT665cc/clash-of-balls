@@ -28,10 +28,11 @@ typedef struct
     SDL_Texture *texture; /* Texture de la boule */
     double mass;
     int colliding;
+    int num;
 } Ball;
 
 void createBall(Ball* balls, int size, double mass, Vect position, Vect speed, SDL_Texture *texture, int* num_balls_list, int max_balls);
-void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int maxBalls);
+void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int maxBalls, int* num_balls_list);
 void updateBalls(Uint64 elapsedTime, Ball *balls, int maxBalls, int* num_balls_list);
 void drawBall(SDL_Renderer *renderer, Ball *ball);
 void drawBalls(SDL_Renderer* renderer, Ball* balls, int maxBalls, int* num_balls_list);
@@ -42,7 +43,9 @@ void calculer_collision(Ball *b1, Ball *b2, Vect *vA_f, Vect *vB_f);
 double norm(Vect v);
 double dot(Vect v1, Vect v2);
 bool canAppear(Vect position, int width, int height, Ball* balls, int max_balls);
-
+void deleteBall(Ball ball, int* num_balls_list);
+double cineticEnergy(Ball ball);
+void choc(Ball* ball1, Ball* ball2, int* num_balls_list);
 
 int initSDL()
 {
@@ -56,6 +59,7 @@ int initSDL()
 
 int main(int argc, char *argv[])
 {
+    srand( time( NULL ) );
 
     if (initSDL() < 0)
     {
@@ -187,6 +191,7 @@ void createBall(Ball* balls, int size, double mass, Vect position, Vect speed, S
             balls[i].position = position;
             balls[i].mass = mass;
             balls[i].colliding = -1;
+            balls[i].num = i;
 
             /* Initialiser la vitesse de la boule avec des valeurs aléatoires */
             balls[i].speed = speed;
@@ -196,13 +201,8 @@ void createBall(Ball* balls, int size, double mass, Vect position, Vect speed, S
     }
 }
 
-void drawBalls(SDL_Renderer* renderer, Ball* balls, int maxBalls, int* num_balls_list) {
-    for (int i = 0; i < maxBalls; i++)
-        {
-            if (num_balls_list[i] == 1) {
-                drawBall(renderer, &balls[i]);
-            }
-        }
+void deleteBall(Ball ball, int* num_balls_list) {
+    num_balls_list[ball.num] = 0;
 }
 
 Vect posCenter(Ball *ball)
@@ -270,7 +270,7 @@ bool canAppear(Vect position, int width, int height, Ball* balls, int max_balls)
     }
 }
 
-void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int maxBalls)
+void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int maxBalls, int* num_balls_list)
 {
     int diametre = ball->rect.w;
 
@@ -289,29 +289,34 @@ void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int 
 
     for (int i = num_boule_actuelle + 1; i < maxBalls; i++)
     {
-        Ball *other = &balls[i];
-
-        double collideDistance = ((double) ball->rect.w + (double) other->rect.w) / 2;
-
-        double dist = distance(ball, other);
-
-        if (dist <= collideDistance && (ball->colliding == -1 && other->colliding == -1))
+        if (num_balls_list[i] == 1)
         {
-            Vect vA_f;
-            Vect vB_f;
-            calculer_collision(ball, other, &vA_f, &vB_f);
-            ball->speed = vA_f;
-            other->speed = vB_f;
+            Ball *other = &balls[i];
 
-            ball->colliding = i;
-            other->colliding = num_boule_actuelle;
-            printf("Collision entre %d et %d\n", num_boule_actuelle, i);
+            double collideDistance = ((double) ball->rect.w + (double) other->rect.w) / 2;
+
+            double dist = distance(ball, other);
+
+            if (dist <= collideDistance && (ball->colliding == -1 && other->colliding == -1))
+            {
+                Vect vA_f;
+                Vect vB_f;
+                calculer_collision(ball, other, &vA_f, &vB_f);
+                ball->speed = vA_f;
+                other->speed = vB_f;
+
+                ball->colliding = i;
+                other->colliding = num_boule_actuelle;
+                choc(ball, other, num_balls_list);
+                printf("Collision entre %d et %d\n", num_boule_actuelle, i);
+            }
+            
+            if (dist > collideDistance && (ball->colliding == i && other->colliding == num_boule_actuelle)){
+                ball->colliding = -1;
+                other->colliding = -1;
+            }
         }
         
-        if (dist > collideDistance && (ball->colliding == i && other->colliding == num_boule_actuelle)){
-            ball->colliding = -1;
-            other->colliding = -1;
-        }
     }
 
     ball->position.x += ball->speed.x * dt / 1000;
@@ -322,14 +327,41 @@ void updateBalls(Uint64 elapsedTime, Ball *balls, int maxBalls, int* num_balls_l
     for (int i = 0; i < maxBalls; i++)
         {
             if (num_balls_list[i] == 1) {
-                updateBall(elapsedTime, &balls[i], balls, i, maxBalls);
+                updateBall(elapsedTime, &balls[i], balls, i, maxBalls, num_balls_list);
             }
         }
+}
+
+void choc(Ball* ball1, Ball* ball2, int* num_balls_list) {
+    int nb_aleat = rand() % 100;
+    if (nb_aleat % 3 != 0) { /* 1 chance sur 3 égalité */
+        if ( cineticEnergy(*ball1)*100 / (cineticEnergy(*ball1)+cineticEnergy(*ball2)) > nb_aleat ) {
+            /* ball1 gagne */
+            deleteBall(*ball2, num_balls_list);
+            printf("Ball %d gagne !", ball1->num);
+            ball1->colliding = -1;
+        }
+        else {
+            /* ball2 gagne */
+            deleteBall(*ball1, num_balls_list);
+            printf("Ball %d gagne !", ball1->num);
+            ball2->colliding = -1;
+        }
+    }
 }
 
 void drawBall(SDL_Renderer *renderer, Ball *ball)
 {
     SDL_RenderCopy(renderer, ball->texture, NULL, &ball->rect);
+}
+
+void drawBalls(SDL_Renderer* renderer, Ball* balls, int maxBalls, int* num_balls_list) {
+    for (int i = 0; i < maxBalls; i++)
+        {
+            if (num_balls_list[i] == 1) {
+                drawBall(renderer, &balls[i]);
+            }
+        }
 }
 
 void cleanup(SDL_Window *window, SDL_Renderer *renderer, int nb_textures, SDL_Texture **textures, Ball *balls)
@@ -369,4 +401,9 @@ double dot(Vect v1, Vect v2)
 double norm(Vect v)
 {
     return sqrt(v.x * v.x + v.y * v.y);
+}
+
+double cineticEnergy(Ball ball) {
+    double speed = norm(ball.speed);
+    return ball.mass*speed*speed;
 }
