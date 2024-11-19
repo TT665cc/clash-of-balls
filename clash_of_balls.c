@@ -1,6 +1,4 @@
-/* gcc clash_of_balls.c -o clash_of_balls.o -lSDL2 -lm 
-   gcc clash_of_balls.c -I include -L lib -l SDL2 -o clash_of_balls
-*/
+/* gcc clash_of_balls.c -o clash_of_balls.o -lSDL2 -lm */
 
 #include <SDL2/SDL.h>
 #include <stdlib.h>
