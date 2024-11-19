@@ -50,6 +50,7 @@ bool canAppear(Vect position, int width, int height, Ball* balls, int max_balls)
 void deleteBall(Ball ball, int* num_balls_list);
 double cineticEnergy(Ball ball);
 void choc(Ball* ball1, Ball* ball2, int* num_balls_list);
+void aiPlay(int* num_balls_list, Ball* balls, SDL_Texture *texture, int max_balls);
 
 int initSDL()
 {
@@ -132,8 +133,8 @@ int main(int argc, char *argv[])
                 if (event.button.button == SDL_BUTTON_LEFT &&
                     canAppear((Vect) {mouseXInArena - 30, mouseYInArena - 30}, 60, 60, balls, maxBalls)) {
                     createBall(balls, 60, 20,
-                               (Vect) {mouseXInArena - 30, mouseYInArena - 30},
-                               (Vect) {100.0, -50.0}, textures[2], num_balls_list, maxBalls);
+                                (Vect) {mouseXInArena - 30, mouseYInArena - 30},
+                                (Vect) {100.0, -50.0}, textures[2], num_balls_list, maxBalls);
                     printf("Clic gauche détecté en (%d, %d)\n", event.button.x, event.button.y);
                 }
             }
@@ -185,10 +186,11 @@ int main(int argc, char *argv[])
         elapsedTime = currentTime - frameTime;
         frameCount++;
 
-        if (currentTime - lastTime >= 5000) {
+        if (currentTime - lastTime >= 2000) {
             printf("FPS: %d\n", frameCount / 5);
             frameCount = 0;
             lastTime = currentTime;
+            aiPlay(num_balls_list, balls, textures[3], maxBalls);
         }
 
         frameTime = SDL_GetTicks64();
@@ -365,7 +367,7 @@ void updateBalls(Uint64 elapsedTime, Ball *balls, int maxBalls, int* num_balls_l
 
 void choc(Ball* ball1, Ball* ball2, int* num_balls_list) {
     int nb_aleat = rand() % 100;
-    if (nb_aleat % 3 != 0) { /* 1 chance sur 3 égalité */
+    if (nb_aleat % 3 != 0 && ball1->texture != ball2->texture) { /* 1 chance sur 3 égalité */
         if ( cineticEnergy(*ball1)*100 / (cineticEnergy(*ball1)+cineticEnergy(*ball2)) > nb_aleat ) {
             /* ball1 gagne */
             deleteBall(*ball2, num_balls_list);
