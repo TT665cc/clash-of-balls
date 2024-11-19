@@ -79,8 +79,8 @@ int main(int argc, char *argv[])
     char imgs[4][30] = {
         "./img/boule_rouge.bmp",
         "./img/boule_bleu.bmp",
-        "./img/boule_verte.bmp",
-        "./img/boule_bleu_clair.bmp"
+        "./img/boule_noir.bmp",
+        "./img/boule_blanche.bmp"
     };
 
     SDL_Texture **textures = malloc(sizeof(SDL_Texture*) * 4);
@@ -106,9 +106,9 @@ int main(int argc, char *argv[])
     Ball *balls = malloc(maxBalls * sizeof(Ball));
 
     // Ajouter quelques boules initiales
-    createBall(balls, 50, 10, (Vect) {100.0, 100.0}, (Vect) {600.0, 900.0}, textures[0], num_balls_list, maxBalls);
-    createBall(balls, 60, 20, (Vect) {300.0, 200.0}, (Vect) {0.0, 0.0}, textures[1], num_balls_list, maxBalls);
-    createBall(balls, 90, 800, (Vect) {400.0, 300.0}, (Vect) {-100.0, 40.0}, textures[2], num_balls_list, maxBalls);
+    createBall(balls, 50, 10, (Vect) {100.0, 100.0}, (Vect) {600.0, 900.0}, textures[3], num_balls_list, maxBalls);
+    createBall(balls, 60, 20, (Vect) {300.0, 200.0}, (Vect) {0.0, 0.0}, textures[2], num_balls_list, maxBalls);
+    createBall(balls, 90, 800, (Vect) {400.0, 300.0}, (Vect) {-100.0, 40.0}, textures[3], num_balls_list, maxBalls);
 
     bool isRunning = true;
     SDL_Event event;
@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
                     canAppear((Vect) {mouseXInArena - 30, mouseYInArena - 30}, 60, 60, balls, maxBalls)) {
                     createBall(balls, 60, 20,
                                (Vect) {mouseXInArena - 30, mouseYInArena - 30},
-                               (Vect) {100.0, -50.0}, textures[0], num_balls_list, maxBalls);
+                               (Vect) {100.0, -50.0}, textures[2], num_balls_list, maxBalls);
                     printf("Clic gauche détecté en (%d, %d)\n", event.button.x, event.button.y);
                 }
             }
@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
         updateBalls(elapsedTime, balls, maxBalls, num_balls_list);
 
         // Rendu
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Fond noir pour toute la fenêtre
+        SDL_SetRenderDrawColor(renderer, 245, 245, 245, 255); // Fond noir pour toute la fenêtre
         SDL_RenderClear(renderer);
 
         // Affichage de la bordure autour de l'arène
@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
         SDL_RenderSetViewport(renderer, &arenaViewport);
 
         // Dessiner le fond de l'arène
-        SDL_SetRenderDrawColor(renderer, 0, 0, 100, 255);
+        SDL_SetRenderDrawColor(renderer, 217, 217, 217, 255);
         SDL_RenderFillRect(renderer, NULL);
 
         // Dessiner les boules
@@ -220,6 +220,15 @@ void createBall(Ball* balls, int size, double mass, Vect position, Vect speed, S
 
             pas_deja_creee = false;
         }
+    }
+}
+
+void aiPlay(int* num_balls_list, Ball* balls, SDL_Texture *texture, int max_balls) {
+    int max_speed = 500;
+    Vect position = (Vect){100, rand() % ARENA_HEIGHT};
+    Vect vitesse = (Vect){rand() % max_speed, -(rand() % max_speed)};
+    if (canAppear(position, 40, 40, balls, max_balls)) {
+        createBall(balls, 40, 50, position, vitesse, texture, num_balls_list, max_balls);
     }
 }
 
