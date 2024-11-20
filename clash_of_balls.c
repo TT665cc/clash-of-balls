@@ -33,11 +33,12 @@ typedef struct
     double mass;
     int colliding;
     int num;
+    int color; /* 0 pour blanc, 1 pour noir*/
 } Ball;
 
-void createBall(Ball* balls, int size, double mass, Vect position, Vect speed, SDL_Texture *texture, int* num_balls_list, int max_balls);
-void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int maxBalls, int* num_balls_list);
-void updateBalls(Uint64 elapsedTime, Ball *balls, int maxBalls, int* num_balls_list);
+void createBall(Ball* balls, int size, double mass, Vect position, Vect speed, SDL_Texture *texture, int color, Vect* nb_color_balls, int* num_balls_list, int max_balls);
+void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int maxBalls, int* num_balls_list, Vect* nb_color_balls);
+void updateBalls(Uint64 elapsedTime, Ball *balls, int maxBalls, int* num_balls_list, Vect* nb_color_balls);
 void drawBall(SDL_Renderer *renderer, Ball *ball);
 void drawBalls(SDL_Renderer* renderer, Ball* balls, int maxBalls, int* num_balls_list);
 void cleanup(SDL_Window *window, SDL_Renderer *renderer, int nb_textures, SDL_Texture **textures, Ball *balls);
@@ -47,10 +48,11 @@ void calculer_collision(Ball *b1, Ball *b2, Vect *vA_f, Vect *vB_f);
 double norm(Vect v);
 double dot(Vect v1, Vect v2);
 bool canAppear(Vect position, int width, int height, Ball* balls, int max_balls);
-void deleteBall(Ball ball, int* num_balls_list);
+void deleteBall(Ball ball, int* num_balls_list, Vect* nb_color_balls);
 double cineticEnergy(Ball ball);
-void choc(Ball* ball1, Ball* ball2, int* num_balls_list);
-void aiPlay(int* num_balls_list, Ball* balls, SDL_Texture *texture, int max_balls);
+void choc(Ball* ball1, Ball* ball2, int* num_balls_list, Vect* nb_color_balls);
+void drawTransparentRectangle(SDL_Renderer *renderer, int x, int y, int width, int height, Uint8 r, Uint8 g, Uint8 b, Uint8 alpha);
+void aiPlay(int* num_balls_list, Ball* balls, SDL_Texture *texture, int max_balls, Vect* nb_color_balls);
 
 int initSDL()
 {
@@ -73,6 +75,7 @@ int main(int argc, char *argv[])
 
     int maxBalls = 100;
     int num_balls_list[maxBalls];
+    Vect nb_color_balls = (Vect){0, 0}; /* x: blanches, y: noire*/
     for (int i = 0; i < maxBalls; i++) {
         num_balls_list[i] = 0;
     }
@@ -107,9 +110,9 @@ int main(int argc, char *argv[])
     Ball *balls = malloc(maxBalls * sizeof(Ball));
 
     // Ajouter quelques boules initiales
-    createBall(balls, 50, 10, (Vect) {100.0, 100.0}, (Vect) {600.0, 900.0}, textures[3], num_balls_list, maxBalls);
-    createBall(balls, 60, 20, (Vect) {300.0, 200.0}, (Vect) {0.0, 0.0}, textures[2], num_balls_list, maxBalls);
-    createBall(balls, 90, 800, (Vect) {400.0, 300.0}, (Vect) {-100.0, 40.0}, textures[3], num_balls_list, maxBalls);
+    createBall(balls, 50, 10, (Vect) {100.0, 100.0}, (Vect) {600.0, 900.0}, textures[3], 0, &nb_color_balls, num_balls_list, maxBalls);
+    createBall(balls, 60, 20, (Vect) {300.0, 200.0}, (Vect) {0.0, 0.0}, textures[2], 1, &nb_color_balls, num_balls_list, maxBalls);
+    createBall(balls, 90, 800, (Vect) {400.0, 300.0}, (Vect) {-100.0, 40.0}, textures[3], 0, &nb_color_balls, num_balls_list, maxBalls);
 
     bool isRunning = true;
     SDL_Event event;
@@ -134,14 +137,14 @@ int main(int argc, char *argv[])
                     canAppear((Vect) {mouseXInArena - 30, mouseYInArena - 30}, 60, 60, balls, maxBalls)) {
                     createBall(balls, 60, 20,
                                 (Vect) {mouseXInArena - 30, mouseYInArena - 30},
-                                (Vect) {100.0, -50.0}, textures[2], num_balls_list, maxBalls);
+                                (Vect) {100.0, -50.0}, textures[2], 1, &nb_color_balls, num_balls_list, maxBalls);
                     printf("Clic gauche détecté en (%d, %d)\n", event.button.x, event.button.y);
                 }
             }
         }
 
         // Mise à jour des boules
-        updateBalls(elapsedTime, balls, maxBalls, num_balls_list);
+        updateBalls(elapsedTime, balls, maxBalls, num_balls_list, &nb_color_balls);
 
         // Rendu
         SDL_SetRenderDrawColor(renderer, 245, 245, 245, 255); // Fond noir pour toute la fenêtre
@@ -179,6 +182,12 @@ int main(int argc, char *argv[])
         // Exemple d'affichage de texte ou éléments (ajouter une fonction de dessin si nécessaire)
         // drawText(renderer, "Score: 0", 10, 10);
 
+        if ((int)(nb_color_balls.x) == 0 || (int)(nb_color_balls.y == 0)) {
+            drawTransparentRectangle(renderer, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 255, 0, 0, 128);
+        }
+        
+
+
         SDL_RenderPresent(renderer);
 
         // Gestion du framerate
@@ -190,7 +199,8 @@ int main(int argc, char *argv[])
             printf("FPS: %d\n", frameCount / 5);
             frameCount = 0;
             lastTime = currentTime;
-            aiPlay(num_balls_list, balls, textures[3], maxBalls);
+            aiPlay(num_balls_list, balls, textures[3], maxBalls, &nb_color_balls);
+            printf("\nboules blanches: %d; boules noires: %d\n", (int)(nb_color_balls.x), (int)(nb_color_balls.y));
         }
 
         frameTime = SDL_GetTicks64();
@@ -201,7 +211,24 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void createBall(Ball* balls, int size, double mass, Vect position, Vect speed, SDL_Texture *texture, int* num_balls_list, int max_balls)
+// Fonction pour dessiner un rectangle transparent
+void drawTransparentRectangle(SDL_Renderer *renderer, int x, int y, int width, int height, 
+                              Uint8 r, Uint8 g, Uint8 b, Uint8 alpha) {
+    // Activer le blending pour permettre la transparence
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
+    // Définir la couleur (avec alpha pour la transparence)
+    SDL_SetRenderDrawColor(renderer, r, g, b, alpha);
+
+    // Définir les dimensions du rectangle
+    SDL_Rect rect = {x, y, width, height};
+
+    // Dessiner le rectangle plein
+    SDL_RenderFillRect(renderer, &rect);
+}
+
+
+void createBall(Ball* balls, int size, double mass, Vect position, Vect speed, SDL_Texture *texture, int color, Vect* nb_color_balls, int* num_balls_list, int max_balls)
 {
     bool pas_deja_creee = true;
     for (int i = 0; i < max_balls; i++) {
@@ -216,6 +243,14 @@ void createBall(Ball* balls, int size, double mass, Vect position, Vect speed, S
             balls[i].mass = mass;
             balls[i].colliding = -1;
             balls[i].num = i;
+            balls[i].color = color;
+
+            if (color == 0) {
+                nb_color_balls->x += 1;
+            }
+            else {
+                nb_color_balls->y += 1;
+            }
 
             /* Initialiser la vitesse de la boule avec des valeurs aléatoires */
             balls[i].speed = speed;
@@ -225,17 +260,23 @@ void createBall(Ball* balls, int size, double mass, Vect position, Vect speed, S
     }
 }
 
-void aiPlay(int* num_balls_list, Ball* balls, SDL_Texture *texture, int max_balls) {
+void aiPlay(int* num_balls_list, Ball* balls, SDL_Texture *texture, int max_balls, Vect* nb_color_balls) {
     int max_speed = 500;
     Vect position = (Vect){100, rand() % ARENA_HEIGHT};
     Vect vitesse = (Vect){rand() % max_speed, -(rand() % max_speed)};
     if (canAppear(position, 40, 40, balls, max_balls)) {
-        createBall(balls, 40, 50, position, vitesse, texture, num_balls_list, max_balls);
+        createBall(balls, 40, 50, position, vitesse, texture, 0, nb_color_balls, num_balls_list, max_balls);
     }
 }
 
-void deleteBall(Ball ball, int* num_balls_list) {
+void deleteBall(Ball ball, int* num_balls_list, Vect* nb_color_balls) {
     num_balls_list[ball.num] = 0;
+    if (ball.color == 0) {
+        nb_color_balls->x -= 1;
+    }
+    else {
+        nb_color_balls->y -= 1;
+    }
 }
 
 Vect posCenter(Ball *ball)
@@ -303,7 +344,7 @@ bool canAppear(Vect position, int width, int height, Ball* balls, int max_balls)
     }
 }
 
-void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int maxBalls, int* num_balls_list)
+void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int maxBalls, int* num_balls_list, Vect* nb_color_balls)
 {
     int diametre = ball->rect.w;
 
@@ -340,7 +381,7 @@ void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int 
 
                 ball->colliding = i;
                 other->colliding = num_boule_actuelle;
-                choc(ball, other, num_balls_list);
+                choc(ball, other, num_balls_list, nb_color_balls);
                 printf("Collision entre %d et %d\n", num_boule_actuelle, i);
             }
             
@@ -356,27 +397,27 @@ void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int 
     ball->position.y += ball->speed.y * dt / 1000;
 }
 
-void updateBalls(Uint64 elapsedTime, Ball *balls, int maxBalls, int* num_balls_list) {
+void updateBalls(Uint64 elapsedTime, Ball *balls, int maxBalls, int* num_balls_list, Vect* nb_color_balls) {
     for (int i = 0; i < maxBalls; i++)
         {
             if (num_balls_list[i] == 1) {
-                updateBall(elapsedTime, &balls[i], balls, i, maxBalls, num_balls_list);
+                updateBall(elapsedTime, &balls[i], balls, i, maxBalls, num_balls_list, nb_color_balls);
             }
         }
 }
 
-void choc(Ball* ball1, Ball* ball2, int* num_balls_list) {
+void choc(Ball* ball1, Ball* ball2, int* num_balls_list, Vect* nb_color_balls) {
     int nb_aleat = rand() % 100;
     if (nb_aleat % 3 != 0 && ball1->texture != ball2->texture) { /* 1 chance sur 3 égalité */
         if ( cineticEnergy(*ball1)*100 / (cineticEnergy(*ball1)+cineticEnergy(*ball2)) > nb_aleat ) {
             /* ball1 gagne */
-            deleteBall(*ball2, num_balls_list);
+            deleteBall(*ball2, num_balls_list, nb_color_balls);
             printf("Ball %d gagne !", ball1->num);
             ball1->colliding = -1;
         }
         else {
             /* ball2 gagne */
-            deleteBall(*ball1, num_balls_list);
+            deleteBall(*ball1, num_balls_list, nb_color_balls);
             printf("Ball %d gagne !", ball1->num);
             ball2->colliding = -1;
         }
