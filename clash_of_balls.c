@@ -1,6 +1,7 @@
 /* gcc clash_of_balls.c -o clash_of_balls.o -lSDL2 -lm */
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
@@ -36,6 +37,13 @@ typedef struct
     int color; /* 0 pour blanc, 1 pour noir*/
 } Ball;
 
+typedef struct {
+    SDL_Texture *texture;
+    int width;
+    int height;
+} Text;
+
+
 void createBall(Ball* balls, int size, double mass, Vect position, Vect speed, SDL_Texture *texture, int color, Vect* nb_color_balls, int* num_balls_list, int max_balls);
 void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int maxBalls, int* num_balls_list, Vect* nb_color_balls);
 void updateBalls(Uint64 elapsedTime, Ball *balls, int maxBalls, int* num_balls_list, Vect* nb_color_balls);
@@ -53,6 +61,9 @@ double cineticEnergy(Ball ball);
 void choc(Ball* ball1, Ball* ball2, int* num_balls_list, Vect* nb_color_balls);
 void drawTransparentRectangle(SDL_Renderer *renderer, int x, int y, int width, int height, Uint8 r, Uint8 g, Uint8 b, Uint8 alpha);
 void aiPlay(int* num_balls_list, Ball* balls, SDL_Texture *texture, int max_balls, Vect* nb_color_balls);
+Text createText(SDL_Renderer *renderer, TTF_Font *font, const char *text, SDL_Color color);
+void drawText(SDL_Renderer *renderer, Text *text, int x, int y);
+void destroyText(Text *text);
 
 int initSDL()
 {
@@ -61,6 +72,11 @@ int initSDL()
         printf("Erreur d'initialisation de SDL: %s\n", SDL_GetError());
         return -1;
     }
+    if (TTF_Init() == -1) {
+        printf("Failed to initialize SDL_ttf: %s\n", TTF_GetError());
+        return -1;
+    }
+
     return 0;
 }
 
@@ -120,6 +136,16 @@ int main(int argc, char *argv[])
     Uint64 frameTime = SDL_GetTicks();
     Uint64 elapsedTime = 0;
     int frameCount = 0;
+
+    TTF_Font *font = TTF_OpenFont("Jersey_Sharp.ttf", 32);
+    if (!font) {
+        printf("Erreur lors du chargement de la police: %s\n", TTF_GetError());
+        return -1;
+    }
+
+    SDL_Color whiteColor = {0, 0, 0, 0};
+    Text titleText = createText(renderer, font, "Clash of Balls", whiteColor);
+
 
     while (isRunning)
     {
@@ -185,9 +211,10 @@ int main(int argc, char *argv[])
         if ((int)(nb_color_balls.x) == 0 || (int)(nb_color_balls.y == 0)) {
             drawTransparentRectangle(renderer, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 255, 0, 0, 128);
         }
+
+        drawText(renderer, &titleText, 850, 50);
+
         
-
-
         SDL_RenderPresent(renderer);
 
         // Gestion du framerate
@@ -206,10 +233,49 @@ int main(int argc, char *argv[])
         frameTime = SDL_GetTicks64();
     }
 
+    destroyText(&titleText);
+    TTF_CloseFont(font);
+
+
     cleanup(window, renderer, 4, textures, balls);
 
     return 0;
 }
+
+Text createText(SDL_Renderer *renderer, TTF_Font *font, const char *text, SDL_Color color) {
+    Text newText;
+    SDL_Surface *textSurface = TTF_RenderText_Solid(font, text, color);
+    if (!textSurface) {
+        printf("Erreur lors du rendu du texte: %s\n", TTF_GetError());
+        newText.texture = NULL;
+        return newText;
+    }
+    newText.texture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    if (!newText.texture) {
+        printf("Erreur lors de la création de la texture pour le texte: %s\n", SDL_GetError());
+    }
+    newText.width = textSurface->w;
+    newText.height = textSurface->h;
+    SDL_FreeSurface(textSurface);
+    return newText;
+}
+
+void drawText(SDL_Renderer *renderer, Text *text, int x, int y) {
+    if (text->texture) {
+        SDL_Rect destRect = {x, y, text->width, text->height};
+        SDL_RenderCopy(renderer, text->texture, NULL, &destRect);
+    }
+}
+void destroyText(Text *text) {
+    if (text->texture) {
+        SDL_DestroyTexture(text->texture);
+        text->texture = NULL;
+    }
+}
+
+
+
+
 
 // Fonction pour dessiner un rectangle transparent
 void drawTransparentRectangle(SDL_Renderer *renderer, int x, int y, int width, int height, 
