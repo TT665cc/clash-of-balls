@@ -143,8 +143,10 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    SDL_Color whiteColor = {0, 0, 0, 0};
-    Text titleText = createText(renderer, font, "Clash of Balls", whiteColor);
+    SDL_Color blackColor = {0, 0, 0, 0};
+    Text titleText = createText(renderer, font, "Clash of Balls", blackColor);
+    Text whiteWon = createText(renderer, font, "White wins !", blackColor);
+    Text blackWon = createText(renderer, font, "Black wins !", blackColor);
 
 
     while (isRunning)
@@ -205,16 +207,18 @@ int main(int argc, char *argv[])
         // Réinitialiser le viewport pour dessiner des éléments extérieurs
         SDL_RenderSetViewport(renderer, NULL);
 
-        // Exemple d'affichage de texte ou éléments (ajouter une fonction de dessin si nécessaire)
-        // drawText(renderer, "Score: 0", 10, 10);
-
-        if ((int)(nb_color_balls.x) == 0 || (int)(nb_color_balls.y == 0)) {
-            drawTransparentRectangle(renderer, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 255, 0, 0, 128);
-        }
 
         drawText(renderer, &titleText, 850, 50);
 
-        
+        if ((int)(nb_color_balls.x) == 0) {
+            drawTransparentRectangle(renderer, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 217, 217, 217, 192);
+            drawText(renderer, &blackWon, (SCREEN_WIDTH/2)-(blackWon.width/2), (SCREEN_HEIGHT/2)-(blackWon.height/2));
+        }
+        else if ((int)(nb_color_balls.y == 0)) {
+            drawTransparentRectangle(renderer, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 217, 217, 217, 192);
+            drawText(renderer, &whiteWon, (SCREEN_WIDTH/2)-(whiteWon.width/2), (SCREEN_HEIGHT/2)-(whiteWon.height/2));
+        }
+
         SDL_RenderPresent(renderer);
 
         // Gestion du framerate
@@ -331,7 +335,7 @@ void aiPlay(int* num_balls_list, Ball* balls, SDL_Texture *texture, int max_ball
     Vect position = (Vect){100, rand() % ARENA_HEIGHT};
     Vect vitesse = (Vect){rand() % max_speed, -(rand() % max_speed)};
     if (canAppear(position, 40, 40, balls, max_balls)) {
-        createBall(balls, 40, 50, position, vitesse, texture, 0, nb_color_balls, num_balls_list, max_balls);
+        createBall(balls, 60, 60, position, vitesse, texture, 0, nb_color_balls, num_balls_list, max_balls);
     }
 }
 
