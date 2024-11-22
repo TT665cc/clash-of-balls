@@ -1,4 +1,4 @@
-/* gcc clash_of_balls.c -o clash_of_balls.o -lSDL2 -lm */
+/* gcc clash_of_balls.c -o clash_of_balls.o -lSDL2 -lSDL2_ttf -lm*/
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
