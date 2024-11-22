@@ -69,7 +69,7 @@ Text createText(SDL_Renderer *renderer, TTF_Font *font, const char *text, SDL_Co
 void drawText(SDL_Renderer *renderer, Text *text, int x, int y);
 void destroyText(Text *text);
 
-int initSDL()
+int initSDL(void)
 {
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
     {
@@ -84,7 +84,7 @@ int initSDL()
     return 0;
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
     srand( time( NULL ) );
 
@@ -381,7 +381,6 @@ double distance(Ball *ball1, Ball *ball2)
 void calculer_collision(Ball *b1, Ball *b2, Vect *vA_f, Vect *vB_f)
 {
     // Calcul de la différence de position et de vitesse
-    Vect delta_v = {b1->speed.x - b2->speed.x, b1->speed.y - b2->speed.y};
     Vect p1 = posCenter(b1);
     Vect p2 = posCenter(b2);
     Vect delta_p = {p1.x - p2.x, p1.y - p2.y};
@@ -430,8 +429,6 @@ bool canAppear(Vect position, int width, int height, Ball* balls, int max_balls)
 
 void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int maxBalls, int* num_balls_list, Vect* nb_color_balls)
 {
-    int diametre = ball->rect.w;
-
     ball->rect.x = floor(ball->position.x);
     ball->rect.y = floor(ball->position.y);
 
