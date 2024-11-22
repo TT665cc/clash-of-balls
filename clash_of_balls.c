@@ -425,6 +425,7 @@ bool canAppear(Vect position, int width, int height, Ball* balls, int max_balls)
             return false;
         }
     }
+    return true;
 }
 
 void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int maxBalls, int* num_balls_list, Vect* nb_color_balls)
