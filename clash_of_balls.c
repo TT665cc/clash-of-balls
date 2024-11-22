@@ -43,6 +43,10 @@ typedef struct {
     int height;
 } Text;
 
+typedef struct {
+    SDL_Texture *texture;
+    SDL_Rect rect;
+} Card;
 
 void createBall(Ball* balls, int size, double mass, Vect position, Vect speed, SDL_Texture *texture, int color, Vect* nb_color_balls, int* num_balls_list, int max_balls);
 void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int maxBalls, int* num_balls_list, Vect* nb_color_balls);
@@ -98,7 +102,7 @@ int main(int argc, char *argv[])
 
     char imgs[4][30] = {
         "./img/boule_rouge.bmp",
-        "./img/boule_bleu.bmp",
+        "./img/whiteBallCard.bmp",
         "./img/boule_noir.bmp",
         "./img/boule_blanche.bmp"
     };
@@ -124,6 +128,14 @@ int main(int argc, char *argv[])
     }
 
     Ball *balls = malloc(maxBalls * sizeof(Ball));
+    Card cards[4];
+
+    cards[0].texture = textures[1];
+    cards[0].rect.x = 1000;
+    cards[0].rect.y = 300;
+    cards[0].rect.w = 150;
+    cards[0].rect.h = 250;
+
 
     // Ajouter quelques boules initiales
     createBall(balls, 50, 10, (Vect) {100.0, 100.0}, (Vect) {600.0, 900.0}, textures[3], 0, &nb_color_balls, num_balls_list, maxBalls);
@@ -207,6 +219,7 @@ int main(int argc, char *argv[])
         // Réinitialiser le viewport pour dessiner des éléments extérieurs
         SDL_RenderSetViewport(renderer, NULL);
 
+        SDL_RenderCopy(renderer, cards[0].texture, NULL, &cards[0].rect);
 
         drawText(renderer, &titleText, 850, 50);
 
