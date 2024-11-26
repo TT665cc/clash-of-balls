@@ -134,17 +134,33 @@ int main(void)
     Card cards[nb_cards];
 
     cards[0].texture = textures[1];
-    cards[0].rect.x = 1000;
-    cards[0].rect.y = 300;
+    cards[0].rect.x = 650;
+    cards[0].rect.y = 150;
     cards[0].rect.w = 150;
     cards[0].rect.h = 250;
 
+    cards[1].texture = textures[1];
+    cards[1].rect.x = 650 + 250;
+    cards[1].rect.y = 150;
+    cards[1].rect.w = 150;
+    cards[1].rect.h = 250;
+
+    cards[2].texture = textures[1];
+    cards[2].rect.x = 650 + 500;
+    cards[2].rect.y = 150;
+    cards[2].rect.w = 150;
+    cards[2].rect.h = 250;
+
+    cards[3].texture = textures[1];
+    cards[3].rect.x = 650 + 250;
+    cards[3].rect.y = 150 + 400;
+    cards[3].rect.w = 150;
+    cards[3].rect.h = 250;
+
     for (int i = 0; i<nb_cards; i++) {
-        cards[i].exist = false;
+        cards[i].exist = true;
         cards[i].is_selected = false;
     }
-    cards[0].exist = true;
-    cards[0].is_selected = false;
 
 
     // Ajouter quelques boules initiales
@@ -201,6 +217,7 @@ int main(void)
                                         (Vect) {mouseXInArena - 30, mouseYInArena - 30},
                                         (Vect) {100.0, -50.0}, textures[2], 1, &nb_color_balls, num_balls_list, maxBalls);
                             cards[i].is_selected = false;
+                            cards[i].exist = false;
                             printf("Clic gauche détecté en (%d, %d)\n", event.button.x, event.button.y);
                         }
                     }
@@ -244,7 +261,11 @@ int main(void)
         // Réinitialiser le viewport pour dessiner des éléments extérieurs
         SDL_RenderSetViewport(renderer, NULL);
 
-        SDL_RenderCopy(renderer, cards[0].texture, NULL, &cards[0].rect);
+        for (int i = 0; i < nb_cards; i++) {
+            if (cards[i].exist) {
+                SDL_RenderCopy(renderer, cards[i].texture, NULL, &cards[i].rect);
+            }
+        }
 
         drawText(renderer, &titleText, 850, 50);
 
