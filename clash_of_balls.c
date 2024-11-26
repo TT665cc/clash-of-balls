@@ -102,11 +102,12 @@ int main(void)
         num_balls_list[i] = 0;
     }
 
-    char imgs[4][30] = {
-        "./img/boule_rouge.bmp",
+    char imgs[5][30] = {
+        "./img/empty_ball.bmp",
         "./img/whiteBallCard.bmp",
         "./img/boule_noir.bmp",
-        "./img/boule_blanche.bmp"
+        "./img/boule_blanche.bmp",
+        "./img/selectedBallCard.bmp"
     };
 
     SDL_Texture **textures = malloc(sizeof(SDL_Texture*) * 4);
@@ -116,7 +117,7 @@ int main(void)
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
     // Charger les textures
-    for(int i = 0; i < 4; i++) {
+    for(int i = 0; i < 5; i++) {
         SDL_Surface *surf = SDL_LoadBMP(imgs[i]);
         if (!surf)
         {
@@ -145,7 +146,7 @@ int main(void)
     cards[1].rect.w = 150;
     cards[1].rect.h = 250;
 
-    cards[2].texture = textures[1];
+    cards[2].texture = textures[0];
     cards[2].rect.x = 650 + 500;
     cards[2].rect.y = 150;
     cards[2].rect.w = 150;
@@ -203,6 +204,7 @@ int main(void)
                     if (cards[i].exist && mouseX >= cards[i].rect.x && mouseX <= cards[i].rect.x + cards[i].rect.w
                             && mouseY >= cards[i].rect.y && mouseY <= cards[i].rect.y + cards[i].rect.h) {
                         cards[i].is_selected = true;
+                        cards[i].texture = textures[4];
                     }
                 }
 
@@ -218,6 +220,7 @@ int main(void)
                                         (Vect) {100.0, -50.0}, textures[2], 1, &nb_color_balls, num_balls_list, maxBalls);
                             cards[i].is_selected = false;
                             cards[i].exist = false;
+                            cards[i].texture = textures[0];
                             printf("Clic gauche détecté en (%d, %d)\n", event.button.x, event.button.y);
                         }
                     }
@@ -262,9 +265,7 @@ int main(void)
         SDL_RenderSetViewport(renderer, NULL);
 
         for (int i = 0; i < nb_cards; i++) {
-            if (cards[i].exist) {
-                SDL_RenderCopy(renderer, cards[i].texture, NULL, &cards[i].rect);
-            }
+            SDL_RenderCopy(renderer, cards[i].texture, NULL, &cards[i].rect);
         }
 
         drawText(renderer, &titleText, 850, 50);
