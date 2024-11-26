@@ -46,6 +46,8 @@ typedef struct {
 typedef struct {
     SDL_Texture *texture;
     SDL_Rect rect;
+    bool is_selected;
+    bool exist;
 } Card;
 
 void createBall(Ball* balls, int size, double mass, Vect position, Vect speed, SDL_Texture *texture, int color, Vect* nb_color_balls, int* num_balls_list, int max_balls);
@@ -128,13 +130,21 @@ int main(void)
     }
 
     Ball *balls = malloc(maxBalls * sizeof(Ball));
-    Card cards[4];
+    int nb_cards = 4;
+    Card cards[nb_cards];
 
     cards[0].texture = textures[1];
     cards[0].rect.x = 1000;
     cards[0].rect.y = 300;
     cards[0].rect.w = 150;
     cards[0].rect.h = 250;
+
+    for (int i = 0; i<nb_cards; i++) {
+        cards[i].exist = false;
+        cards[i].is_selected = false;
+    }
+    cards[0].exist = true;
+    cards[0].is_selected = false;
 
 
     // Ajouter quelques boules initiales
@@ -170,15 +180,30 @@ int main(void)
                 isRunning = false;
             }
             else if (event.type == SDL_MOUSEBUTTONDOWN) {
-                int mouseXInArena = event.button.x - (SCREEN_WIDTH - ARENA_WIDTH) / 10;
-                int mouseYInArena = event.button.y - (SCREEN_HEIGHT - ARENA_HEIGHT) / 2;
+                int mouseX = event.button.x;
+                int mouseY = event.button.y;
 
-                if (event.button.button == SDL_BUTTON_LEFT &&
-                    canAppear((Vect) {mouseXInArena - 30, mouseYInArena - 30}, 60, 60, balls, maxBalls)) {
-                    createBall(balls, 60, 20,
-                                (Vect) {mouseXInArena - 30, mouseYInArena - 30},
-                                (Vect) {100.0, -50.0}, textures[2], 1, &nb_color_balls, num_balls_list, maxBalls);
-                    printf("Clic gauche détecté en (%d, %d)\n", event.button.x, event.button.y);
+                for (int i = 0; i<nb_cards; i++) {
+                    if (cards[i].exist && mouseX >= cards[i].rect.x && mouseX <= cards[i].rect.x + cards[i].rect.w
+                            && mouseY >= cards[i].rect.y && mouseY <= cards[i].rect.y + cards[i].rect.h) {
+                        cards[i].is_selected = true;
+                    }
+                }
+
+                for (int i = 0; i<nb_cards; i++) {
+                    if (cards[i].is_selected == true) {
+                        int mouseXInArena = event.button.x - (SCREEN_WIDTH - ARENA_WIDTH) / 10;
+                        int mouseYInArena = event.button.y - (SCREEN_HEIGHT - ARENA_HEIGHT) / 2;
+
+                        if (event.button.button == SDL_BUTTON_LEFT &&
+                            canAppear((Vect) {mouseXInArena - 30, mouseYInArena - 30}, 60, 60, balls, maxBalls)) {
+                            createBall(balls, 60, 20,
+                                        (Vect) {mouseXInArena - 30, mouseYInArena - 30},
+                                        (Vect) {100.0, -50.0}, textures[2], 1, &nb_color_balls, num_balls_list, maxBalls);
+                            cards[i].is_selected = false;
+                            printf("Clic gauche détecté en (%d, %d)\n", event.button.x, event.button.y);
+                        }
+                    }
                 }
             }
         }
