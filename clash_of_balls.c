@@ -86,8 +86,8 @@ int initSDL(void)
     return 0;
 }
 
-int main(void)
-{
+int main(void) {
+
     srand( time( NULL ) );
 
     if (initSDL() < 0)
@@ -102,6 +102,7 @@ int main(void)
         num_balls_list[i] = 0;
     }
 
+    int nb_textures = 5;
     char imgs[5][30] = {
         "./img/empty_ball.bmp",
         "./img/whiteBallCard.bmp",
@@ -110,7 +111,7 @@ int main(void)
         "./img/selectedBallCard.bmp"
     };
 
-    SDL_Texture **textures = malloc(sizeof(SDL_Texture*) * 4);
+    SDL_Texture **textures = malloc(sizeof(SDL_Texture*) * nb_textures);
 
     // Création de la fenêtre
     SDL_Window *window = SDL_CreateWindow("Clash_of_balls", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
@@ -122,7 +123,7 @@ int main(void)
         if (!surf)
         {
             printf("Erreur de chargement de l'image: %s\n", SDL_GetError());
-            cleanup(window, renderer, 4, textures, NULL);
+            cleanup(window, renderer, nb_textures, textures, NULL);
             return -1;
         }
         SDL_Texture *imageTexture = SDL_CreateTextureFromSurface(renderer, surf);
@@ -165,13 +166,14 @@ int main(void)
 
 
     // Ajouter quelques boules initiales
-    createBall(balls, 50, 10, (Vect) {100.0, 100.0}, (Vect) {600.0, 900.0}, textures[3], 0, &nb_color_balls, num_balls_list, maxBalls);
-    createBall(balls, 60, 20, (Vect) {300.0, 200.0}, (Vect) {0.0, 0.0}, textures[2], 1, &nb_color_balls, num_balls_list, maxBalls);
-    createBall(balls, 90, 800, (Vect) {400.0, 300.0}, (Vect) {-100.0, 40.0}, textures[3], 0, &nb_color_balls, num_balls_list, maxBalls);
+    createBall(balls, 50, 10, (Vect) {100.0, 100.0}, (Vect) {600.0, 900.0}, textures[2], 1, &nb_color_balls, num_balls_list, maxBalls);
+    createBall(balls, 60, 20, (Vect) {300.0, 200.0}, (Vect) {0.0, 0.0}, textures[3], 0, &nb_color_balls, num_balls_list, maxBalls);
+    createBall(balls, 90, 800, (Vect) {400.0, 300.0}, (Vect) {-100.0, 40.0}, textures[2], 1, &nb_color_balls, num_balls_list, maxBalls);
 
     bool isRunning = true;
     SDL_Event event;
     Uint64 lastTime = SDL_GetTicks();
+    Uint64 lastTime_cartes = SDL_GetTicks64();
     Uint64 frameTime = SDL_GetTicks();
     Uint64 elapsedTime = 0;
     int frameCount = 0;
@@ -217,7 +219,7 @@ int main(void)
                             canAppear((Vect) {mouseXInArena - 30, mouseYInArena - 30}, 60, 60, balls, maxBalls)) {
                             createBall(balls, 60, 20,
                                         (Vect) {mouseXInArena - 30, mouseYInArena - 30},
-                                        (Vect) {100.0, -50.0}, textures[2], 1, &nb_color_balls, num_balls_list, maxBalls);
+                                        (Vect) {100.0, -50.0}, textures[3], 0, &nb_color_balls, num_balls_list, maxBalls);
                             cards[i].is_selected = false;
                             cards[i].exist = false;
                             cards[i].texture = textures[0];
@@ -290,8 +292,14 @@ int main(void)
             printf("FPS: %d\n", frameCount / 5);
             frameCount = 0;
             lastTime = currentTime;
-            aiPlay(num_balls_list, balls, textures[3], maxBalls, &nb_color_balls);
+            aiPlay(num_balls_list, balls, textures[2], maxBalls, &nb_color_balls);
             printf("\nboules blanches: %d; boules noires: %d\n", (int)(nb_color_balls.x), (int)(nb_color_balls.y));
+        }
+
+        if (currentTime - lastTime_cartes >= 5000 && (!cards[3].exist)) {
+            lastTime_cartes = currentTime;
+            cards[3].texture = textures[1];
+            cards[3].exist = true;
         }
 
         frameTime = SDL_GetTicks64();
@@ -301,7 +309,7 @@ int main(void)
     TTF_CloseFont(font);
 
 
-    cleanup(window, renderer, 4, textures, balls);
+    cleanup(window, renderer, nb_textures, textures, balls);
 
     return 0;
 }
@@ -395,7 +403,7 @@ void aiPlay(int* num_balls_list, Ball* balls, SDL_Texture *texture, int max_ball
     Vect position = (Vect){100, rand() % ARENA_HEIGHT};
     Vect vitesse = (Vect){rand() % max_speed, -(rand() % max_speed)};
     if (canAppear(position, 40, 40, balls, max_balls)) {
-        createBall(balls, 60, 60, position, vitesse, texture, 0, nb_color_balls, num_balls_list, max_balls);
+        createBall(balls, 60, 60, position, vitesse, texture, 1, nb_color_balls, num_balls_list, max_balls);
     }
 }
 
