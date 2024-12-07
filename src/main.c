@@ -147,8 +147,8 @@ int main(void)
     for (int i = 0; i < nb_cards; i++)
     {
         cards[i].texture = textures[9];
-        cards[i].rect.x = 900 - 125 * (i % 2) - 125 * (i % 3);
-        cards[i].rect.y = 150 + 400 * (i / 3);
+        cards[i].rect.x = 900 - 375 * ((i % 3) % 2) + 125 * (i % 3); // tkt c'est pas compliqué (première au centre, deuxième à gauche, troisième à droite)
+        cards[i].rect.y = 150 + 400 * (i / 3); // on change de ligne tous les 3
         cards[i].rect.w = 150;
         cards[i].rect.h = 250;
         cards[i].exist = true;
@@ -243,13 +243,11 @@ int main(void)
                 mousePos.x = event.motion.x;
                 mousePos.y = event.motion.y;
 
-                if (draw_t_ball) {
-                    int mouseXInArena = mousePos.x - (SCREEN_WIDTH - ARENA_WIDTH) / 10;
-                    int mouseYInArena = mousePos.y - (SCREEN_HEIGHT - ARENA_HEIGHT) / 2;
+                int mouseXInArena = mousePos.x - (SCREEN_WIDTH - ARENA_WIDTH) / 10;
+                int mouseYInArena = mousePos.y - (SCREEN_HEIGHT - ARENA_HEIGHT) / 2;
 
-                    t_ball.x = mouseXInArena - 30;
-                    t_ball.y = mouseYInArena - 30;
-                }
+                t_ball.x = mouseXInArena - 30;
+                t_ball.y = mouseYInArena - 30;
             }
         }
 
@@ -332,6 +330,8 @@ int main(void)
     TTF_CloseFont(font);
 
     cleanup(window, renderer, nb_textures, textures, balls);
+
+    printf("Quitting !\n");
 
     return 0;
 }
@@ -640,6 +640,7 @@ void cleanup(SDL_Window *window, SDL_Renderer *renderer, int nb_textures, SDL_Te
     {
         SDL_DestroyWindow(window);
     }
+    TTF_Quit();
     SDL_Quit();
 }
 
