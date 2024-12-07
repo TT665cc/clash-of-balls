@@ -60,7 +60,7 @@ void drawBalls(SDL_Renderer *renderer, Ball *balls, int *num_balls_list);
 void cleanup(SDL_Window *window, SDL_Renderer *renderer, int nb_textures, SDL_Texture **textures, Ball *balls);
 Vect posCenter(Ball *ball);
 void calculer_collision(Ball *b1, Ball *b2, Vect *vA_f, Vect *vB_f);
-bool canAppear(Vect position, int width, int height, Ball *balls);
+bool canAppear(Vect position, int width, int height, Ball *balls, int *num_balls_list);
 void deleteBall(Ball ball, int *num_balls_list, Vect *nb_color_balls);
 double cineticEnergy(Ball ball);
 void choc(Ball *ball1, Ball *ball2, int *num_balls_list, Vect *nb_color_balls);
@@ -118,7 +118,7 @@ int main(void)
         ARENA_HEIGHT + 20
     };
 
-    int max_textures = 10;
+    int max_textures = 11;
 
     SDL_Texture **textures = malloc(sizeof(SDL_Texture *) * max_textures);
 
@@ -134,47 +134,31 @@ int main(void)
     }
 
     // Charger les textures
-    loadImagesFromDirectory("./img", renderer, textures, max_textures);
+    int nb_textures = loadImagesFromDirectory("./img", renderer, textures, max_textures);
     
+    SDL_Rect t_ball = {0, 0, 60, 60}; // Boule transparente (lorsqu'elle est sélectionnée)
+    bool draw_t_ball = false;
+
 
     Ball balls[max_balls];
     int nb_cards = 4;
     Card cards[nb_cards];
 
-    cards[0].texture = textures[9];
-    cards[0].rect.x = 650;
-    cards[0].rect.y = 150;
-    cards[0].rect.w = 150;
-    cards[0].rect.h = 250;
-
-    cards[1].texture = textures[9];
-    cards[1].rect.x = 650 + 250;
-    cards[1].rect.y = 150;
-    cards[1].rect.w = 150;
-    cards[1].rect.h = 250;
-
-    cards[2].texture = textures[9];
-    cards[2].rect.x = 650 + 500;
-    cards[2].rect.y = 150;
-    cards[2].rect.w = 150;
-    cards[2].rect.h = 250;
-
-    cards[3].texture = textures[9];
-    cards[3].rect.x = 650 + 250;
-    cards[3].rect.y = 150 + 400;
-    cards[3].rect.w = 150;
-    cards[3].rect.h = 250;
-
     for (int i = 0; i < nb_cards; i++)
     {
+        cards[i].texture = textures[9];
+        cards[i].rect.x = 900 - 125 * (i % 2) - 125 * (i % 3);
+        cards[i].rect.y = 150 + 400 * (i / 3);
+        cards[i].rect.w = 150;
+        cards[i].rect.h = 250;
         cards[i].exist = true;
         cards[i].is_selected = false;
     }
 
     // Ajouter quelques boules initiales
-    createBall(balls, 50, 10, (Vect){100.0, 100.0}, (Vect){600.0, 900.0}, textures[0], 0, &nb_color_balls, num_balls_list);
-    createBall(balls, 60, 20, (Vect){300.0, 200.0}, (Vect){0.0, 0.0}, textures[3], 1, &nb_color_balls, num_balls_list);
-    createBall(balls, 90, 800, (Vect){400.0, 300.0}, (Vect){-100.0, 40.0}, textures[0], 0, &nb_color_balls, num_balls_list);
+    createBall(balls, 50, 10,  (Vect) {100.0, 100.0}, (Vect) {600.0, 900.0}, textures[0], 0, &nb_color_balls, num_balls_list);
+    createBall(balls, 60, 20,  (Vect) {300.0, 200.0}, (Vect) {0.0, 0.0},     textures[3], 1, &nb_color_balls, num_balls_list);
+    createBall(balls, 90, 800, (Vect) {400.0, 300.0}, (Vect) {-100.0, 40.0}, textures[0], 0, &nb_color_balls, num_balls_list);
 
     bool isRunning = true;
     SDL_Event event;
@@ -194,6 +178,8 @@ int main(void)
     Text titleText = createText(renderer, font, "Clash of Balls", blackColor);
     Text whiteWon = createText(renderer, font, "White wins !", blackColor);
     Text blackWon = createText(renderer, font, "Black wins !", blackColor);
+
+    Vect mousePos = {0, 0};
 
     while (isRunning)
     {
@@ -231,13 +217,14 @@ int main(void)
 
                 for (int i = 0; i < nb_cards; i++)
                 {
-                    if (cards[i].is_selected == true)
+                    if (cards[i].is_selected)
                     {
                         int mouseXInArena = event.button.x - (SCREEN_WIDTH - ARENA_WIDTH) / 10;
                         int mouseYInArena = event.button.y - (SCREEN_HEIGHT - ARENA_HEIGHT) / 2;
+                        draw_t_ball = true;
 
                         if (event.button.button == SDL_BUTTON_LEFT &&
-                            canAppear((Vect){mouseXInArena - 30, mouseYInArena - 30}, 60, 60, balls))
+                            canAppear((Vect){mouseXInArena - 30, mouseYInArena - 30}, 60, 60, balls, num_balls_list))
                         {
                             createBall(balls, 60, 20,
                                        (Vect){mouseXInArena - 30, mouseYInArena - 30},
@@ -245,10 +232,24 @@ int main(void)
                             cards[i].is_selected = false;
                             cards[i].exist = false;
                             cards[i].texture = textures[6];
+                            draw_t_ball = false;
                         }
                     }
                 }
                 printf("Clic gauche détecté en (%d, %d)\n", event.button.x, event.button.y);
+            } else if (event.type == SDL_MOUSEMOTION)
+            {
+
+                mousePos.x = event.motion.x;
+                mousePos.y = event.motion.y;
+
+                if (draw_t_ball) {
+                    int mouseXInArena = mousePos.x - (SCREEN_WIDTH - ARENA_WIDTH) / 10;
+                    int mouseYInArena = mousePos.y - (SCREEN_HEIGHT - ARENA_HEIGHT) / 2;
+
+                    t_ball.x = mouseXInArena - 30;
+                    t_ball.y = mouseYInArena - 30;
+                }
             }
         }
 
@@ -272,6 +273,12 @@ int main(void)
 
         // Dessiner les boules
         drawBalls(renderer, balls, num_balls_list);
+
+        // Dessiner la boule transparente
+
+        if(draw_t_ball){
+            SDL_RenderCopy(renderer, textures[10], NULL, &t_ball);
+        }
 
         // Réinitialiser le viewport pour dessiner des éléments extérieurs
         SDL_RenderSetViewport(renderer, NULL);
@@ -324,7 +331,7 @@ int main(void)
     destroyText(&titleText);
     TTF_CloseFont(font);
 
-    cleanup(window, renderer, 4, textures, balls);
+    cleanup(window, renderer, nb_textures, textures, balls);
 
     return 0;
 }
@@ -423,9 +430,9 @@ void createBall(Ball *balls, int size, double mass, Vect position, Vect speed, S
 void aiPlay(int *num_balls_list, Ball *balls, SDL_Texture *texture, Vect *nb_color_balls)
 {
     int max_speed = 500;
-    Vect position = (Vect){100, rand() % ARENA_HEIGHT};
+    Vect position = (Vect) {100, rand() % ARENA_HEIGHT};
     Vect vitesse = (Vect){rand() % max_speed, -(rand() % max_speed)};
-    if (canAppear(position, 40, 40, balls))
+    if (canAppear(position, 40, 40, balls, num_balls_list))
     {
         createBall(balls, 60, 60, position, vitesse, texture, 0, nb_color_balls, num_balls_list);
     }
@@ -481,7 +488,7 @@ void calculer_collision(Ball *b1, Ball *b2, Vect *vA_f, Vect *vB_f)
     vB_f->y = b2->speed.y + p * b1->mass * delta_p.y;
 }
 
-bool canAppear(Vect position, int width, int height, Ball *balls)
+bool canAppear(Vect position, int width, int height, Ball *balls, int *num_balls_list)
 {
     if ((position.x <= 0) || (position.x + width >= ARENA_WIDTH))
     {
@@ -494,6 +501,9 @@ bool canAppear(Vect position, int width, int height, Ball *balls)
 
     for (int i = 0; i < max_balls; i++)
     {
+        if(num_balls_list[i] == 0){
+            continue;
+        }
         Ball *other = &balls[i];
 
         double collideDistance = ((double)width + (double)other->rect.w) / 2;
@@ -622,10 +632,6 @@ void cleanup(SDL_Window *window, SDL_Renderer *renderer, int nb_textures, SDL_Te
         }
         free(textures);
     }
-    if (balls != NULL)
-    {
-        free(balls);
-    }
     if (renderer != NULL)
     {
         SDL_DestroyRenderer(renderer);
@@ -700,6 +706,8 @@ int loadImagesFromDirectory(const char *directory, SDL_Renderer *renderer, SDL_T
         printf("Erreur lors de l'ouverture du répertoire: %s\n", directory);
         return -1;
     }
+
+    free(st);
 
     return texture_count;
 }
