@@ -69,7 +69,6 @@ void aiPlay(int *num_balls_list, Ball *balls, SDL_Texture *texture, Vect *nb_col
 Text createText(SDL_Renderer *renderer, TTF_Font *font, const char *text, SDL_Color color);
 void drawText(SDL_Renderer *renderer, Text *text, int x, int y);
 void destroyText(Text *text);
-int boule_fantome_existe(int mouseX, int mouseY, SDL_Rect arenaViewport, int rayon, Card cards[nb_cards]);
 
 int initSDL(void)
 {
@@ -126,7 +125,7 @@ int main(void)
     SDL_Texture **textures = malloc(sizeof(SDL_Texture *) * max_textures);
 
     // Création de la fenêtre
-    SDL_Window *window = SDL_CreateWindow("Clash_of_balls", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_VULKAN);
+    SDL_Window *window = SDL_CreateWindow("Clash_of_balls", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
     if (!window || !renderer)
@@ -262,12 +261,6 @@ int main(void)
                 t_ball.x = mouseXInArena - 30;
                 t_ball.y = mouseYInArena - 30;
             }
-            else if (boule_fantome_existe(mouseX, mouseY, arenaViewport, 30, cards))
-            {
-                t_ball.x = mouseX;
-                t_ball.y = mouseY;
-                SDL_RenderCopy(renderer, textures[6], NULL, &t_ball);
-            }
         }
 
         SDL_RenderPresent(renderer);
@@ -346,7 +339,7 @@ int main(void)
         SDL_RenderPresent(renderer);
 
         // Gestion du framerate
-        Uint64 currentTime = SDL_GetTicks64();
+        currentTime = SDL_GetTicks64();
         elapsedTime = currentTime - frameTime;
         frameCount++;
 
