@@ -41,6 +41,8 @@ typedef struct
     SDL_Texture *texture;
     int width;
     int height;
+    TTF_Font *font;
+    SDL_Color color;
 } Text;
 
 typedef struct
@@ -57,7 +59,7 @@ void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int 
 void updateBalls(Uint64 elapsedTime, Ball *balls, int *num_balls_list, Vect *nb_color_balls);
 void drawBall(SDL_Renderer *renderer, Ball *ball);
 void drawBalls(SDL_Renderer *renderer, Ball *balls, int *num_balls_list);
-void cleanup(SDL_Window *window, SDL_Renderer *renderer, int nb_textures, SDL_Texture **textures, Ball *balls);
+void cleanup(SDL_Window *window, SDL_Renderer *renderer, int nb_textures, SDL_Texture **textures);
 Vect posCenter(Ball *ball);
 void calculer_collision(Ball *b1, Ball *b2, Vect *vA_f, Vect *vB_f);
 bool canAppear(Vect position, int width, int height, Ball *balls, int *num_balls_list);
@@ -67,8 +69,11 @@ void choc(Ball *ball1, Ball *ball2, int *num_balls_list, Vect *nb_color_balls);
 void drawTransparentRectangle(SDL_Renderer *renderer, int x, int y, int width, int height, Uint8 r, Uint8 g, Uint8 b, Uint8 alpha);
 void aiPlay(int *num_balls_list, Ball *balls, SDL_Texture *texture, Vect *nb_color_balls);
 Text createText(SDL_Renderer *renderer, TTF_Font *font, const char *text, SDL_Color color);
-void drawText(SDL_Renderer *renderer, Text *text, int x, int y);
+void drawText(SDL_Renderer *renderer, Text *text, SDL_Rect destRect);
 void destroyText(Text *text);
+int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window, Text titleText);
+bool welcomeScreen(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window, Text titleText);
+bool replayScreen(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window, Text titleText, int winner);
 
 int initSDL(void)
 {
@@ -97,26 +102,7 @@ int main(void)
         return -1;
     }
 
-    int num_balls_list[max_balls];
-    Vect nb_color_balls = (Vect){0, 0}; /* x: blanches, y: noire*/
-    for (int i = 0; i < max_balls; i++)
-    {
-        num_balls_list[i] = 0;
-    }
-
-    // Configurer le viewport pour l'arène
-    SDL_Rect arenaViewport = {
-        .x = (SCREEN_WIDTH - ARENA_WIDTH) / 10,
-        .y = (SCREEN_HEIGHT - ARENA_HEIGHT) / 2,
-        .w = ARENA_WIDTH,
-        .h = ARENA_HEIGHT};
-
-    /* Créer un rectangle pour la bordure autour de l'arène (10 pixels de large) */
-    SDL_Rect borderRect = {
-        (SCREEN_WIDTH - ARENA_WIDTH) / 10 - 10,
-        (SCREEN_HEIGHT - ARENA_HEIGHT) / 2 - 10,
-        ARENA_WIDTH + 20,
-        ARENA_HEIGHT + 20};
+    
 
     int max_textures = 11;
 
@@ -129,43 +115,13 @@ int main(void)
     if (!window || !renderer)
     {
         printf("Erreur lors de la création de la fenêtre: %s\n", SDL_GetError());
-        cleanup(window, renderer, 0, textures, NULL);
+        cleanup(window, renderer, 0, textures);
         return -1;
     }
 
     // Charger les textures
     int nb_textures = loadImagesFromDirectory("./img", renderer, textures, max_textures);
-
-    SDL_Rect t_ball = {0, 0, 60, 60}; // Boule transparente (lorsqu'elle est sélectionnée)
-    bool draw_t_ball = false;
-
-    Ball balls[max_balls];
-    int nb_cards = 4;
-    Card cards[nb_cards];
-
-    for (int i = 0; i < nb_cards; i++)
-    {
-        cards[i].texture = textures[9];
-        cards[i].rect.x = 900 - 375 * ((i % 3) % 2) + 125 * (i % 3); // tkt c'est pas compliqué (première au centre, deuxième à gauche, troisième à droite)
-        cards[i].rect.y = 150 + 400 * (i / 3);                       // on change de ligne tous les 3
-        cards[i].rect.w = 150;
-        cards[i].rect.h = 250;
-        cards[i].exist = true;
-        cards[i].is_selected = false;
-    }
-
-    // Ajouter quelques boules initiales
-    createBall(balls, 50, 10, (Vect){100.0, 100.0}, (Vect){600.0, 900.0}, textures[0], 0, &nb_color_balls, num_balls_list);
-    createBall(balls, 60, 20, (Vect){300.0, 200.0}, (Vect){0.0, 0.0}, textures[3], 1, &nb_color_balls, num_balls_list);
-    createBall(balls, 90, 800, (Vect){400.0, 300.0}, (Vect){-100.0, 40.0}, textures[0], 0, &nb_color_balls, num_balls_list);
-
-    bool isRunning = true;
-    SDL_Event event;
-    Uint64 lastTime = SDL_GetTicks();
-    Uint64 lastTime_cartes = SDL_GetTicks64();
-    Uint64 frameTime = SDL_GetTicks();
-    Uint64 elapsedTime = 0;
-    int frameCount = 0;
+    
 
     TTF_Font *font = TTF_OpenFont("Jersey_Sharp.ttf", 32);
     if (!font)
@@ -176,181 +132,23 @@ int main(void)
 
     SDL_Color blackColor = {0, 0, 0, 0};
     Text titleText = createText(renderer, font, "Clash of Balls", blackColor);
-    Text whiteWon = createText(renderer, font, "White wins !", blackColor);
-    Text blackWon = createText(renderer, font, "Black wins !", blackColor);
+    
 
-    Vect mousePos = {0, 0};
+    bool start = welcomeScreen(textures, renderer, window, titleText);
+    bool winner;
 
-    while (isRunning)
+    while (start)
     {
-        // Configurer le viewport pour l'arène
-        SDL_Rect arenaViewport = {
-            .x = (SCREEN_WIDTH - ARENA_WIDTH) / 10,
-            .y = (SCREEN_HEIGHT - ARENA_HEIGHT) / 2,
-            .w = ARENA_WIDTH,
-            .h = ARENA_HEIGHT};
-
-        while (SDL_PollEvent(&event))
-        {
-            int mouseX = event.button.x;
-            int mouseY = event.button.y;
-            if (event.type == SDL_QUIT || event.key.keysym.sym == SDLK_ESCAPE)
-            {
-                isRunning = false;
-            }
-            else if (event.type == SDL_MOUSEBUTTONDOWN)
-            {
-                int mouseX = event.button.x;
-                int mouseY = event.button.y;
-
-                for (int i = 0; i < nb_cards; i++)
-                {
-                    if (cards[i].exist && isInBox((Vect){mouseX, mouseY}, cards[i].rect))
-                    {
-                        cards[i].is_selected = true;
-                        cards[i].texture = textures[8];
-
-                        for (int j = 0; j < nb_cards; j++)
-                        {
-                            if (j != i)
-                            {
-                                cards[j].is_selected = false;
-                                if (cards[j].exist)
-                                {
-                                    cards[j].texture = textures[9];
-                                }
-                            }
-                        }
-                    }
-                }
-
-                for (int i = 0; i < nb_cards; i++)
-                {
-                    if (cards[i].is_selected)
-                    {
-                        int mouseXInArena = event.button.x - (SCREEN_WIDTH - ARENA_WIDTH) / 10;
-                        int mouseYInArena = event.button.y - (SCREEN_HEIGHT - ARENA_HEIGHT) / 2;
-                        draw_t_ball = true;
-
-                        if (event.button.button == SDL_BUTTON_LEFT &&
-                            canAppear((Vect){mouseXInArena - 30, mouseYInArena - 30}, 60, 60, balls, num_balls_list))
-                        {
-                            createBall(balls, 60, 20,
-                                       (Vect){mouseXInArena - 30, mouseYInArena - 30},
-                                       (Vect){100.0, -50.0}, textures[3], 1, &nb_color_balls, num_balls_list);
-                            cards[i].is_selected = false;
-                            cards[i].exist = false;
-                            cards[i].texture = textures[6];
-                            draw_t_ball = false;
-                        }
-                    }
-                }
-                printf("Clic gauche détecté en (%d, %d)\n", event.button.x, event.button.y);
-            }
-            else if (event.type == SDL_MOUSEMOTION)
-            {
-
-                mousePos.x = event.motion.x;
-                mousePos.y = event.motion.y;
-
-                int mouseXInArena = mousePos.x - (SCREEN_WIDTH - ARENA_WIDTH) / 10;
-                int mouseYInArena = mousePos.y - (SCREEN_HEIGHT - ARENA_HEIGHT) / 2;
-
-                t_ball.x = mouseXInArena - 30;
-                t_ball.y = mouseYInArena - 30;
-            }
-        }
-
-        SDL_RenderPresent(renderer);
-
-        // Gestion du framerate
-        Uint64 currentTime = SDL_GetTicks64();
-        elapsedTime = currentTime - frameTime;
-        frameTime = SDL_GetTicks64();
-        frameCount++;
-
-        if (currentTime - lastTime_cartes >= 5000 && (!cards[3].exist))
-        {
-            lastTime_cartes = currentTime;
-            cards[3].texture = textures[9];
-            cards[3].exist = true;
-        }
-
-        if (currentTime - lastTime >= 2000)
-        {
-            printf("FPS: %d\n", frameCount / 2);
-            frameCount = 0;
-            lastTime = currentTime;
-
-            // Probabilité d'apparition d'une boule blanche (par rapport au nombre de boules blanches et noires)
-
-            double proba = sqrt((double)(nb_color_balls.y) / (double)(nb_color_balls.x + nb_color_balls.y));
-
-            if (rand() % 100 < proba * 100)
-            {
-                aiPlay(num_balls_list, balls, textures[0], &nb_color_balls);
-            }
-            printf("\nboules blanches: %d; boules noires: %d\n", (int)(nb_color_balls.x), (int)(nb_color_balls.y));
-        }
-
-        
-
-        // Mise à jour des boules
-        updateBalls(elapsedTime, balls, num_balls_list, &nb_color_balls);
-
-        // Rendu
-        SDL_SetRenderDrawColor(renderer, 245, 245, 245, 255); // Fond noir pour toute la fenêtre
-        SDL_RenderClear(renderer);
-
-        // Affichage de la bordure autour de l'arène
-
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // Blanc
-        SDL_RenderDrawRect(renderer, &borderRect);
-
-        SDL_RenderSetViewport(renderer, &arenaViewport);
-
-        // Dessiner le fond de l'arène
-        SDL_SetRenderDrawColor(renderer, 217, 217, 217, 255);
-        SDL_RenderFillRect(renderer, NULL);
-
-        // Dessiner les boules
-        drawBalls(renderer, balls, num_balls_list);
-
-        // Dessiner la boule transparente
-
-        if (draw_t_ball)
-        {
-            SDL_RenderCopy(renderer, textures[10], NULL, &t_ball);
-        }
-
-        // Réinitialiser le viewport pour dessiner des éléments extérieurs
-        SDL_RenderSetViewport(renderer, NULL);
-
-        for (int i = 0; i < nb_cards; i++)
-        {
-            SDL_RenderCopy(renderer, cards[i].texture, NULL, &cards[i].rect);
-        }
-
-        drawText(renderer, &titleText, 850, 50);
-
-        if ((int)(nb_color_balls.x) == 0)
-        {
-            drawTransparentRectangle(renderer, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 217, 217, 217, 192);
-            drawText(renderer, &blackWon, (SCREEN_WIDTH / 2) - (blackWon.width / 2), (SCREEN_HEIGHT / 2) - (blackWon.height / 2));
-        }
-        else if ((int)(nb_color_balls.y == 0))
-        {
-            drawTransparentRectangle(renderer, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 217, 217, 217, 192);
-            drawText(renderer, &whiteWon, (SCREEN_WIDTH / 2) - (whiteWon.width / 2), (SCREEN_HEIGHT / 2) - (whiteWon.height / 2));
-        }
-
-        SDL_RenderPresent(renderer);
+        winner = mainGame(textures, renderer, window, titleText);
+        start = replayScreen(textures, renderer, window, titleText, winner);
     }
+
+    
 
     destroyText(&titleText);
     TTF_CloseFont(font);
 
-    cleanup(window, renderer, nb_textures, textures, balls);
+    cleanup(window, renderer, nb_textures, textures);
 
     printf("Quitting !\n");
 
@@ -374,15 +172,18 @@ Text createText(SDL_Renderer *renderer, TTF_Font *font, const char *text, SDL_Co
     }
     newText.width = textSurface->w;
     newText.height = textSurface->h;
+    newText.font = font;
+    newText.color = color;
     SDL_FreeSurface(textSurface);
     return newText;
 }
 
-void drawText(SDL_Renderer *renderer, Text *text, int x, int y)
+void drawText(SDL_Renderer *renderer, Text *text, SDL_Rect destRect)
 {
     if (text->texture)
     {
-        SDL_Rect destRect = {x, y, text->width, text->height};
+
+        SDL_Rect destRect2 = {destRect.x /*- destRect.w / 2*/, destRect.y /*- destRect2.h / 2*/, destRect.w, destRect.h};
         SDL_RenderCopy(renderer, text->texture, NULL, &destRect);
     }
 }
@@ -637,7 +438,7 @@ void drawBalls(SDL_Renderer *renderer, Ball *balls, int *num_balls_list)
     }
 }
 
-void cleanup(SDL_Window *window, SDL_Renderer *renderer, int nb_textures, SDL_Texture **textures, Ball *balls)
+void cleanup(SDL_Window *window, SDL_Renderer *renderer, int nb_textures, SDL_Texture **textures)
 {
     int i;
     if (textures != NULL)
@@ -738,4 +539,367 @@ int loadImagesFromDirectory(const char *directory, SDL_Renderer *renderer, SDL_T
     free(st);
 
     return texture_count;
+}
+
+int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window, Text titleText) {
+    int num_balls_list[max_balls];
+    Vect nb_color_balls = (Vect){0, 0}; /* x: blanches, y: noire*/
+    for (int i = 0; i < max_balls; i++)
+    {
+        num_balls_list[i] = 0;
+    }
+
+    // Configurer le viewport pour l'arène
+    SDL_Rect arenaViewport = {
+        .x = (SCREEN_WIDTH - ARENA_WIDTH) / 10,
+        .y = (SCREEN_HEIGHT - ARENA_HEIGHT) / 2,
+        .w = ARENA_WIDTH,
+        .h = ARENA_HEIGHT};
+
+    /* Créer un rectangle pour la bordure autour de l'arène (10 pixels de large) */
+    SDL_Rect borderRect = {
+        (SCREEN_WIDTH - ARENA_WIDTH) / 10 - 10,
+        (SCREEN_HEIGHT - ARENA_HEIGHT) / 2 - 10,
+        ARENA_WIDTH + 20,
+        ARENA_HEIGHT + 20};
+
+    SDL_Rect t_ball = {0, 0, 60, 60}; // Boule transparente (lorsqu'elle est sélectionnée)
+    bool draw_t_ball = false;
+
+    Ball balls[max_balls];
+    int nb_cards = 4;
+    Card cards[nb_cards];
+
+    for (int i = 0; i < nb_cards; i++)
+    {
+        cards[i].texture = textures[9];
+        cards[i].rect.x = 900 - 375 * ((i % 3) % 2) + 125 * (i % 3); // tkt c'est pas compliqué (première au centre, deuxième à gauche, troisième à droite)
+        cards[i].rect.y = 150 + 400 * (i / 3);                       // on change de ligne tous les 3
+        cards[i].rect.w = 150;
+        cards[i].rect.h = 250;
+        cards[i].exist = true;
+        cards[i].is_selected = false;
+    }
+
+    // Ajouter quelques boules initiales
+    createBall(balls, 50, 10, (Vect){100.0, 100.0}, (Vect){600.0, 900.0}, textures[0], 0, &nb_color_balls, num_balls_list);
+    createBall(balls, 60, 20, (Vect){300.0, 200.0}, (Vect){0.0, 0.0}, textures[3], 1, &nb_color_balls, num_balls_list);
+    createBall(balls, 90, 800, (Vect){400.0, 300.0}, (Vect){-100.0, 40.0}, textures[0], 0, &nb_color_balls, num_balls_list);
+
+    Vect mousePos = {0, 0};
+
+    // Boucle principale
+
+    bool isRunning = true;
+    SDL_Event event;
+    Uint64 lastTime = SDL_GetTicks();
+    Uint64 lastTime_cartes = SDL_GetTicks64();
+    Uint64 frameTime = SDL_GetTicks();
+    Uint64 elapsedTime = 0;
+    int frameCount = 0;
+
+    while (isRunning)
+    {
+        // Configurer le viewport pour l'arène
+        SDL_Rect arenaViewport = {
+            .x = (SCREEN_WIDTH - ARENA_WIDTH) / 10,
+            .y = (SCREEN_HEIGHT - ARENA_HEIGHT) / 2,
+            .w = ARENA_WIDTH,
+            .h = ARENA_HEIGHT};
+
+        while (SDL_PollEvent(&event))
+        {
+            int mouseX = event.button.x;
+            int mouseY = event.button.y;
+            if (event.type == SDL_QUIT || event.key.keysym.sym == SDLK_ESCAPE)
+            {
+                isRunning = false;
+                return -1;
+            }
+            else if (event.type == SDL_MOUSEBUTTONDOWN)
+            {
+                int mouseX = event.button.x;
+                int mouseY = event.button.y;
+
+                for (int i = 0; i < nb_cards; i++)
+                {
+                    if (cards[i].exist && isInBox((Vect){mouseX, mouseY}, cards[i].rect))
+                    {
+                        cards[i].is_selected = true;
+                        cards[i].texture = textures[8];
+
+                        for (int j = 0; j < nb_cards; j++)
+                        {
+                            if (j != i)
+                            {
+                                cards[j].is_selected = false;
+                                if (cards[j].exist)
+                                {
+                                    cards[j].texture = textures[9];
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for (int i = 0; i < nb_cards; i++)
+                {
+                    if (cards[i].is_selected)
+                    {
+                        int mouseXInArena = event.button.x - (SCREEN_WIDTH - ARENA_WIDTH) / 10;
+                        int mouseYInArena = event.button.y - (SCREEN_HEIGHT - ARENA_HEIGHT) / 2;
+                        draw_t_ball = true;
+
+                        if (event.button.button == SDL_BUTTON_LEFT &&
+                            canAppear((Vect){mouseXInArena - 30, mouseYInArena - 30}, 60, 60, balls, num_balls_list))
+                        {
+                            createBall(balls, 60, 20,
+                                       (Vect){mouseXInArena - 30, mouseYInArena - 30},
+                                       (Vect){100.0, -50.0}, textures[3], 1, &nb_color_balls, num_balls_list);
+                            cards[i].is_selected = false;
+                            cards[i].exist = false;
+                            cards[i].texture = textures[6];
+                            draw_t_ball = false;
+                        }
+                    }
+                }
+                printf("Clic gauche détecté en (%d, %d)\n", event.button.x, event.button.y);
+            }
+            else if (event.type == SDL_MOUSEMOTION)
+            {
+
+                mousePos.x = event.motion.x;
+                mousePos.y = event.motion.y;
+
+                int mouseXInArena = mousePos.x - (SCREEN_WIDTH - ARENA_WIDTH) / 10;
+                int mouseYInArena = mousePos.y - (SCREEN_HEIGHT - ARENA_HEIGHT) / 2;
+
+                t_ball.x = mouseXInArena - 30;
+                t_ball.y = mouseYInArena - 30;
+            }
+        }
+
+        SDL_RenderPresent(renderer);
+
+        // Gestion du framerate
+        Uint64 currentTime = SDL_GetTicks64();
+        elapsedTime = currentTime - frameTime;
+        frameTime = SDL_GetTicks64();
+        frameCount++;
+
+        if (currentTime - lastTime_cartes >= 5000 && (!cards[3].exist))
+        {
+            lastTime_cartes = currentTime;
+            cards[3].texture = textures[9];
+            cards[3].exist = true;
+        }
+
+        if (currentTime - lastTime >= 2000)
+        {
+            printf("FPS: %d\n", frameCount / 2);
+            frameCount = 0;
+            lastTime = currentTime;
+
+            // Probabilité d'apparition d'une boule blanche (par rapport au nombre de boules blanches et noires)
+
+            double proba = sqrt((double)(nb_color_balls.y) / (double)(nb_color_balls.x + nb_color_balls.y));
+
+            if (rand() % 100 < proba * 100)
+            {
+                aiPlay(num_balls_list, balls, textures[0], &nb_color_balls);
+            }
+            printf("\nboules blanches: %d; boules noires: %d\n", (int)(nb_color_balls.x), (int)(nb_color_balls.y));
+        }
+
+        if (nb_color_balls.x == 0)
+        {
+            return 1;
+        } else if (nb_color_balls.y == 0)
+        {
+            return 0;
+        }
+
+        
+
+        // Mise à jour des boules
+        updateBalls(elapsedTime, balls, num_balls_list, &nb_color_balls);
+
+        // Rendu
+        SDL_SetRenderDrawColor(renderer, 245, 245, 245, 255); // Fond noir pour toute la fenêtre
+        SDL_RenderClear(renderer);
+
+        // Affichage de la bordure autour de l'arène
+
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // Blanc
+        SDL_RenderDrawRect(renderer, &borderRect);
+
+        SDL_RenderSetViewport(renderer, &arenaViewport);
+
+        // Dessiner le fond de l'arène
+        SDL_SetRenderDrawColor(renderer, 217, 217, 217, 255);
+        SDL_RenderFillRect(renderer, NULL);
+
+        // Dessiner les boules
+        drawBalls(renderer, balls, num_balls_list);
+
+        // Dessiner la boule transparente
+
+        if (draw_t_ball)
+        {
+            SDL_RenderCopy(renderer, textures[10], NULL, &t_ball);
+        }
+
+        // Réinitialiser le viewport pour dessiner des éléments extérieurs
+        SDL_RenderSetViewport(renderer, NULL);
+
+        for (int i = 0; i < nb_cards; i++)
+        {
+            SDL_RenderCopy(renderer, cards[i].texture, NULL, &cards[i].rect);
+        }
+
+        drawText(renderer, &titleText, (SDL_Rect){SCREEN_WIDTH / 2, 50, titleText.width, titleText.height});
+    }
+
+}
+
+bool welcomeScreen(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window, Text titleText)
+{
+    bool isRunning = true;
+    bool startGame = false;
+    SDL_Event event;
+
+
+    // Button at the low center of the screen (use SCREEN_WIDTH and SCREEN_HEIGHT)
+    SDL_Rect playButton = {SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 50, 200, 100};
+    Text playText = createText(renderer, titleText.font, "Play", titleText.color);
+
+    while (isRunning)
+    {
+        while (SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_QUIT || event.key.keysym.sym == SDLK_ESCAPE)
+            {
+                isRunning = false;
+                
+            }
+            else if (event.type == SDL_MOUSEBUTTONDOWN)
+            {
+                int mouseX = event.button.x;
+                int mouseY = event.button.y;
+                if (event.button.button == SDL_BUTTON_LEFT)
+                {
+                    if (isInBox((Vect){mouseX, mouseY}, playButton))
+                    {
+                        isRunning = false;
+                        startGame = true;
+                    } else {
+                        drawText(renderer, &titleText, (SDL_Rect){mouseX, mouseY, titleText.width, titleText.height});
+                    }
+                }
+            }
+        }
+
+        SDL_RenderPresent(renderer);
+
+        // Fond gris
+        SDL_SetRenderDrawColor(renderer, 217, 217, 217, 255);
+        SDL_RenderClear(renderer);
+
+        // Bouton de jeu (Rectangle plus clair + texte)
+
+        SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
+
+        SDL_RenderFillRect(renderer, &playButton);
+
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+
+        SDL_RenderDrawRect(renderer, &playButton);
+
+        
+
+        drawText(renderer, &playText, (SDL_Rect){playButton.x + playButton.w / 2, playButton.y + playButton.h / 2, playText.width, playText.height});
+
+        drawText(renderer, &titleText, (SDL_Rect){SCREEN_WIDTH / 2, 50, titleText.width, titleText.height});
+    }
+
+    destroyText(&playText);
+
+    return startGame;
+}
+
+bool replayScreen(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window, Text titleText, int winner)
+{
+    if (winner == -1)
+    {
+        return false;
+    }
+    
+    bool isRunning = true;
+    bool startGame = false;
+    SDL_Event event;
+
+    // Button at the low center of the screen (use SCREEN_WIDTH and SCREEN_HEIGHT)
+    SDL_Rect replayButton = {SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 50, 200, 100};
+    Text replayText = createText(renderer, titleText.font, "Replay", titleText.color);
+    Text winnerText;
+
+    if (winner == 0)
+    {
+        winnerText = createText(renderer, titleText.font, "White wins !", titleText.color);
+    }
+    else if (winner == 1)
+    {
+        winnerText = createText(renderer, titleText.font, "Black wins !", titleText.color);
+    }
+
+    while (isRunning)
+    {
+        while (SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_QUIT || event.key.keysym.sym == SDLK_ESCAPE)
+            {
+                isRunning = false;
+            }
+            else if (event.type == SDL_MOUSEBUTTONDOWN)
+            {
+                int mouseX = event.button.x;
+                int mouseY = event.button.y;
+                if (event.button.button == SDL_BUTTON_LEFT)
+                {
+                    if (isInBox((Vect){mouseX, mouseY}, replayButton))
+                    {
+                        isRunning = false;
+                        startGame = true;
+                    }
+                }
+            }
+        }
+
+        SDL_RenderPresent(renderer);
+
+        // Fond gris
+        SDL_SetRenderDrawColor(renderer, 217, 217, 217, 255);
+        SDL_RenderClear(renderer);
+
+        // Bouton de jeu (Rectangle plus clair + texte)
+
+        SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
+
+        SDL_RenderFillRect(renderer, &replayButton);
+
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+
+        SDL_RenderDrawRect(renderer, &replayButton);
+
+        drawText(renderer, &replayText, (SDL_Rect){replayButton.x + replayButton.w / 2, replayButton.y + replayButton.h / 2, replayText.width, replayText.height});
+
+        drawText(renderer, &titleText, (SDL_Rect){SCREEN_WIDTH / 2, 50, titleText.width, titleText.height});
+
+        drawText(renderer, &winnerText, (SDL_Rect){SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 200, winnerText.width, winnerText.height});
+    }
+
+    destroyText(&winnerText);
+    destroyText(&replayText);
+
+    return startGame;
 }
