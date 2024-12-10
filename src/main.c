@@ -791,8 +791,6 @@ bool welcomeScreen(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *w
                     {
                         isRunning = false;
                         startGame = true;
-                    } else {
-                        drawText(renderer, &titleText, (SDL_Rect){mouseX, mouseY, titleText.width, titleText.height});
                     }
                 }
             }
