@@ -182,9 +182,8 @@ void drawText(SDL_Renderer *renderer, Text *text, SDL_Rect destRect)
 {
     if (text->texture)
     {
-
-        SDL_Rect destRect2 = {destRect.x /*- destRect.w / 2*/, destRect.y /*- destRect2.h / 2*/, destRect.w, destRect.h};
-        SDL_RenderCopy(renderer, text->texture, NULL, &destRect);
+        SDL_Rect destRect2 = {destRect.x - destRect.w / 2, destRect.y - destRect2.h / 2, destRect.w, destRect.h};
+        SDL_RenderCopy(renderer, text->texture, NULL, &destRect2);
     }
 }
 void destroyText(Text *text)
@@ -447,7 +446,7 @@ void cleanup(SDL_Window *window, SDL_Renderer *renderer, int nb_textures, SDL_Te
         {
             if (textures[i] != NULL)
             {
-                SDL_DestroyTexture(textures[i]); // Correct: utiliser SDL_DestroyTexture
+                SDL_DestroyTexture(textures[i]);
             }
         }
         free(textures);
