@@ -36,5 +36,10 @@ int partialAtoi(const char *str)
         res = res * 10 + str[i] - '0';
         i++;
     }
+
+    if (i == 0)
+    {
+        return -1;
+    }
     return res;
 }

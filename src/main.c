@@ -109,16 +109,14 @@ int main(void)
         .x = (SCREEN_WIDTH - ARENA_WIDTH) / 10,
         .y = (SCREEN_HEIGHT - ARENA_HEIGHT) / 2,
         .w = ARENA_WIDTH,
-        .h = ARENA_HEIGHT
-    };
+        .h = ARENA_HEIGHT};
 
     /* Créer un rectangle pour la bordure autour de l'arène (10 pixels de large) */
     SDL_Rect borderRect = {
         (SCREEN_WIDTH - ARENA_WIDTH) / 10 - 10,
         (SCREEN_HEIGHT - ARENA_HEIGHT) / 2 - 10,
         ARENA_WIDTH + 20,
-        ARENA_HEIGHT + 20
-    };
+        ARENA_HEIGHT + 20};
 
     int max_textures = 11;
 
@@ -137,10 +135,9 @@ int main(void)
 
     // Charger les textures
     int nb_textures = loadImagesFromDirectory("./img", renderer, textures, max_textures);
-    
+
     SDL_Rect t_ball = {0, 0, 60, 60}; // Boule transparente (lorsqu'elle est sélectionnée)
     bool draw_t_ball = false;
-
 
     Ball balls[max_balls];
     int nb_cards = 4;
@@ -150,7 +147,7 @@ int main(void)
     {
         cards[i].texture = textures[9];
         cards[i].rect.x = 900 - 375 * ((i % 3) % 2) + 125 * (i % 3); // tkt c'est pas compliqué (première au centre, deuxième à gauche, troisième à droite)
-        cards[i].rect.y = 150 + 400 * (i / 3); // on change de ligne tous les 3
+        cards[i].rect.y = 150 + 400 * (i / 3);                       // on change de ligne tous les 3
         cards[i].rect.w = 150;
         cards[i].rect.h = 250;
         cards[i].exist = true;
@@ -158,9 +155,9 @@ int main(void)
     }
 
     // Ajouter quelques boules initiales
-    createBall(balls, 50, 10,  (Vect) {100.0, 100.0}, (Vect) {600.0, 900.0}, textures[0], 0, &nb_color_balls, num_balls_list);
-    createBall(balls, 60, 20,  (Vect) {300.0, 200.0}, (Vect) {0.0, 0.0},     textures[3], 1, &nb_color_balls, num_balls_list);
-    createBall(balls, 90, 800, (Vect) {400.0, 300.0}, (Vect) {-100.0, 40.0}, textures[0], 0, &nb_color_balls, num_balls_list);
+    createBall(balls, 50, 10, (Vect){100.0, 100.0}, (Vect){600.0, 900.0}, textures[0], 0, &nb_color_balls, num_balls_list);
+    createBall(balls, 60, 20, (Vect){300.0, 200.0}, (Vect){0.0, 0.0}, textures[3], 1, &nb_color_balls, num_balls_list);
+    createBall(balls, 90, 800, (Vect){400.0, 300.0}, (Vect){-100.0, 40.0}, textures[0], 0, &nb_color_balls, num_balls_list);
 
     bool isRunning = true;
     SDL_Event event;
@@ -249,7 +246,8 @@ int main(void)
                     }
                 }
                 printf("Clic gauche détecté en (%d, %d)\n", event.button.x, event.button.y);
-            } else if (event.type == SDL_MOUSEMOTION)
+            }
+            else if (event.type == SDL_MOUSEMOTION)
             {
 
                 mousePos.x = event.motion.x;
@@ -268,25 +266,34 @@ int main(void)
         // Gestion du framerate
         Uint64 currentTime = SDL_GetTicks64();
         elapsedTime = currentTime - frameTime;
+        frameTime = SDL_GetTicks64();
         frameCount++;
-
-        if (currentTime - lastTime >= 2000)
-        {
-            printf("FPS: %d\n", frameCount / 5);
-            frameCount = 0;
-            lastTime = currentTime;
-            aiPlay(num_balls_list, balls, textures[2], &nb_color_balls);
-            printf("\nboules blanches: %d; boules noires: %d\n", (int)(nb_color_balls.x), (int)(nb_color_balls.y));
-        }
 
         if (currentTime - lastTime_cartes >= 5000 && (!cards[3].exist))
         {
             lastTime_cartes = currentTime;
-            cards[3].texture = textures[1];
+            cards[3].texture = textures[9];
             cards[3].exist = true;
         }
 
-        frameTime = SDL_GetTicks64();
+        if (currentTime - lastTime >= 2000)
+        {
+            printf("FPS: %d\n", frameCount / 2);
+            frameCount = 0;
+            lastTime = currentTime;
+
+            // Probabilité d'apparition d'une boule blanche (par rapport au nombre de boules blanches et noires)
+
+            double proba = sqrt((double)(nb_color_balls.y) / (double)(nb_color_balls.x + nb_color_balls.y));
+
+            if (rand() % 100 < proba * 100)
+            {
+                aiPlay(num_balls_list, balls, textures[0], &nb_color_balls);
+            }
+            printf("\nboules blanches: %d; boules noires: %d\n", (int)(nb_color_balls.x), (int)(nb_color_balls.y));
+        }
+
+        
 
         // Mise à jour des boules
         updateBalls(elapsedTime, balls, num_balls_list, &nb_color_balls);
@@ -311,7 +318,8 @@ int main(void)
 
         // Dessiner la boule transparente
 
-        if(draw_t_ball){
+        if (draw_t_ball)
+        {
             SDL_RenderCopy(renderer, textures[10], NULL, &t_ball);
         }
 
@@ -337,30 +345,6 @@ int main(void)
         }
 
         SDL_RenderPresent(renderer);
-
-        // Gestion du framerate
-        currentTime = SDL_GetTicks64();
-        elapsedTime = currentTime - frameTime;
-        frameCount++;
-
-        if (currentTime - lastTime >= 2000)
-        {
-            printf("FPS: %d\n", frameCount / 2);
-            frameCount = 0;
-            lastTime = currentTime;
-
-            // Probabilité d'apparition d'une boule blanche (par rapport au nombre de boules blanches et noires)
-
-            double proba = sqrt((double)(nb_color_balls.y) / (double)(nb_color_balls.x + nb_color_balls.y));
-
-            if (rand() % 100 < proba * 100)
-            {
-                aiPlay(num_balls_list, balls, textures[0], &nb_color_balls);
-            }
-            printf("\nboules blanches: %d; boules noires: %d\n", (int)(nb_color_balls.x), (int)(nb_color_balls.y));
-        }
-
-        frameTime = SDL_GetTicks64();
     }
 
     destroyText(&titleText);
@@ -379,14 +363,14 @@ Text createText(SDL_Renderer *renderer, TTF_Font *font, const char *text, SDL_Co
     SDL_Surface *textSurface = TTF_RenderText_Solid(font, text, color);
     if (!textSurface)
     {
-        printf("Erreur lors du rendu du texte: %s\n", TTF_GetError());
+        fprintf(stderr, "Erreur lors du rendu du texte: %s\n", TTF_GetError());
         newText.texture = NULL;
         return newText;
     }
     newText.texture = SDL_CreateTextureFromSurface(renderer, textSurface);
     if (!newText.texture)
     {
-        printf("Erreur lors de la création de la texture pour le texte: %s\n", SDL_GetError());
+        fprintf(stderr, "Erreur lors de la création de la texture pour le texte: %s\n", SDL_GetError());
     }
     newText.width = textSurface->w;
     newText.height = textSurface->h;
@@ -467,7 +451,7 @@ void createBall(Ball *balls, int size, double mass, Vect position, Vect speed, S
 void aiPlay(int *num_balls_list, Ball *balls, SDL_Texture *texture, Vect *nb_color_balls)
 {
     int max_speed = 500;
-    Vect position = (Vect) {100, rand() % ARENA_HEIGHT};
+    Vect position = (Vect){100, rand() % ARENA_HEIGHT};
     Vect vitesse = (Vect){rand() % max_speed, -(rand() % max_speed)};
     if (canAppear(position, 40, 40, balls, num_balls_list))
     {
@@ -538,7 +522,8 @@ bool canAppear(Vect position, int width, int height, Ball *balls, int *num_balls
 
     for (int i = 0; i < max_balls; i++)
     {
-        if(num_balls_list[i] == 0){
+        if (num_balls_list[i] == 0)
+        {
             continue;
         }
         Ball *other = &balls[i];
@@ -591,7 +576,6 @@ void updateBall(Uint64 dt, Ball *ball, Ball *balls, int num_boule_actuelle, int 
                 ball->colliding = i;
                 other->colliding = num_boule_actuelle;
                 choc(ball, other, num_balls_list, nb_color_balls);
-                printf("Collision entre %d et %d\n", num_boule_actuelle, i);
             }
 
             if (dist > collideDistance && (ball->colliding == i && other->colliding == num_boule_actuelle))
@@ -626,14 +610,12 @@ void choc(Ball *ball1, Ball *ball2, int *num_balls_list, Vect *nb_color_balls)
         {
             /* ball1 gagne */
             deleteBall(*ball2, num_balls_list, nb_color_balls);
-            printf("Ball %d gagne !", ball1->num);
             ball1->colliding = -1;
         }
         else
         {
             /* ball2 gagne */
             deleteBall(*ball1, num_balls_list, nb_color_balls);
-            printf("Ball %d gagne !", ball1->num);
             ball2->colliding = -1;
         }
     }
@@ -704,18 +686,19 @@ int loadImagesFromDirectory(const char *directory, SDL_Renderer *renderer, SDL_T
             char filepath[512];
             sprintf(filepath, "%s/%s", directory, ent->d_name);
 
-            if (stat(filepath, st) == -1) {
-                printf("Erreur lors de la récupération des informations sur le fichier: %s\n", ent->d_name);
+            if (stat(filepath, st) == -1)
+            {
+                fprintf(stderr, "Erreur lors de la récupération des informations sur le fichier: %s\n", ent->d_name);
                 continue;
             }
 
             if (S_ISREG(st->st_mode))
             {
-                
+
                 SDL_Surface *surf = SDL_LoadBMP(filepath);
                 if (!surf)
                 {
-                    printf("Erreur de chargement de l'image: %s\n", SDL_GetError());
+                    fprintf(stderr, "Erreur de chargement de l'image: %s\n", SDL_GetError());
                     continue;
                 }
 
@@ -725,23 +708,30 @@ int loadImagesFromDirectory(const char *directory, SDL_Renderer *renderer, SDL_T
                 {
                     /* L'indice de texture est le premier chiffre du nom du fichier (peut prendre plusieurs chiffres) */
 
-                    textures[partialAtoi(ent->d_name)] = imageTexture;
+                    int texture_index = partialAtoi(ent->d_name);
+
+                    if (texture_index < 0 || texture_index >= max_textures)
+                    {
+                        fprintf(stderr, "Indice de texture invalide: %d\n", texture_index);
+                        continue;
+                    }
+
+                    textures[texture_index] = imageTexture;
 
                     texture_count++;
                 }
                 else
                 {
-                    printf("Erreur lors de la création de la texture: %s\n", SDL_GetError());
+                    fprintf(stderr, "Erreur lors de la création de la texture: %s\n", SDL_GetError());
                 }
                 printf("Chargement de l'image: %s\n", filepath);
-                fflush(stdout);
             }
         }
         closedir(dir);
     }
     else
     {
-        printf("Erreur lors de l'ouverture du répertoire: %s\n", directory);
+        fprintf(stderr, "Erreur lors de l'ouverture du répertoire: %s\n", directory);
         return -1;
     }
 
