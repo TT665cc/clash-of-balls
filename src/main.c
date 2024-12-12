@@ -755,8 +755,9 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
         {
             SDL_RenderCopy(renderer, cards[i].texture, NULL, &cards[i].rect);
         }
-
-        drawText(renderer, &titleText, (SDL_Rect){SCREEN_WIDTH / 2, 50, titleText.width, titleText.height});
+        // Le premier appel ne fonctionne pas, donc on le fait deux fois (bizarrerie de SDL (ou de moi))
+        drawText(renderer, &titleText, (SDL_Rect){(SCREEN_WIDTH + ARENA_WIDTH) / 2, 50, titleText.width, titleText.height});
+        drawText(renderer, &titleText, (SDL_Rect){(SCREEN_WIDTH + ARENA_WIDTH) / 2, 50, titleText.width, titleText.height});
     }
 
 }
@@ -812,11 +813,10 @@ bool welcomeScreen(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *w
 
         SDL_RenderDrawRect(renderer, &playButton);
 
-        
+        drawText(renderer, &titleText, (SDL_Rect){SCREEN_WIDTH / 2, 50, titleText.width, titleText.height}); 
+        drawText(renderer, &titleText, (SDL_Rect){SCREEN_WIDTH / 2, 50, titleText.width, titleText.height});
 
         drawText(renderer, &playText, (SDL_Rect){playButton.x + playButton.w / 2, playButton.y + playButton.h / 2, playText.width, playText.height});
-
-        drawText(renderer, &titleText, (SDL_Rect){SCREEN_WIDTH / 2, 50, titleText.width, titleText.height});
     }
 
     destroyText(&playText);
@@ -888,11 +888,12 @@ bool replayScreen(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *wi
 
         SDL_RenderDrawRect(renderer, &replayButton);
 
-        drawText(renderer, &replayText, (SDL_Rect){replayButton.x + replayButton.w / 2, replayButton.y + replayButton.h / 2, replayText.width, replayText.height});
-
+        drawText(renderer, &titleText, (SDL_Rect){SCREEN_WIDTH / 2, 50, titleText.width, titleText.height});
         drawText(renderer, &titleText, (SDL_Rect){SCREEN_WIDTH / 2, 50, titleText.width, titleText.height});
 
         drawText(renderer, &winnerText, (SDL_Rect){SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 200, winnerText.width, winnerText.height});
+
+        drawText(renderer, &replayText, (SDL_Rect){replayButton.x + replayButton.w / 2, replayButton.y + replayButton.h / 2, replayText.width, replayText.height});
     }
 
     destroyText(&winnerText);
