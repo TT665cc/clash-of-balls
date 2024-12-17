@@ -295,10 +295,7 @@ void calculer_collision(Ball *b1, Ball *b2, Vect *vA_f, Vect *vB_f)
     // Calcul de la différence de position et de vitesse
     Vect delta_p = addVect(b1->position, b2->position, -1);
 
-    double d = norm(delta_p);
-
-    delta_p.x /= d; // Normalisation
-    delta_p.y /= d;
+    normalize(&delta_p);
 
     double p = 2 * (dot(b1->speed, delta_p) - dot(b2->speed, delta_p)) / (b1->mass + b2->mass);
 
@@ -997,7 +994,7 @@ void handleWallCollision(Ball *ball, Wall *wall)
     for (int i = 0; i < 4; i++)
     {
         Vect corner = (Vect){wall->position.x + (i % 2 == 0 ? -1 : 1) * (wall->rect.w / 2), wall->position.y + (i / 2 == 0 ? -1 : 1) * (wall->rect.h / 2)};
-        if (norm(addVect(ball->position, corner, -1)) <= norm(addVect(ball->position, nearestCorner, -1)))
+        if (distance(ball->position, corner) <= distance(ball->position, nearestCorner))
         {
             nearestCorner = corner;
         }

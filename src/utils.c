@@ -50,8 +50,8 @@ Mat2 multiplyVect(Vect v, Vect coeff)
 
 double angleBetween(Vect v1, Vect v2)
 {
-    Mat2 m = multiplyVect(v1, v2);
-    return atan2(detMat2(m), traceMat2(m));
+    Mat2 m = (Mat2){v1.x, v2.x, v1.y, v2.y};
+    return atan2(detMat2(m), dot(v1, v2));
 }
 
 Vect rotateVect(Vect v, double angle)
@@ -93,4 +93,11 @@ double traceMat2(Mat2 m)
 double distance(Vect v1, Vect v2)
 {
     return norm(addVect(v1, v2, -1));
+}
+
+void normalize(Vect *v)
+{
+    double n = norm(*v);
+    v->x /= n;
+    v->y /= n;
 }

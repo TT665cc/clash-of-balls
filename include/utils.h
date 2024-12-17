@@ -157,3 +157,10 @@ double angleBetween(Vect v1, Vect v2);
  * @return double Distance between the two points
  */
 double distance(Vect v1, Vect v2);
+
+/**
+ * @brief Normalize a vector
+ * 
+ * @param v Vector to normalize
+ */
+void normalize(Vect *v);
