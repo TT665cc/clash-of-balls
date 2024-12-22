@@ -48,10 +48,20 @@ Mat2 multiplyVect(Vect v, Vect coeff)
     return (Mat2){v.x * coeff.x, v.x * coeff.y, v.y * coeff.x, v.y * coeff.y};
 }
 
+/* 
+
+    Exemples pour la fonction angleBetween :
+    angleBetween((Vect){1, 0}, (Vect){0, 1}) = PI / 2
+    angleBetween((Vect){0, 1}, (Vect){1, 0}) = -PI / 2
+    angleBetween((Vect){1, 0}, (Vect){1, 0}) = 0
+    angleBetween((Vect){1, 0}, (Vect){1, 1}) = PI / 4
+    angleBetween((Vect){1, 1}, (Vect){1, 0}) = -PI / 4
+
+*/
+
 double angleBetween(Vect v1, Vect v2)
 {
-    Mat2 m = (Mat2){v1.x, v2.x, v1.y, v2.y};
-    return atan2(detMat2(m), dot(v1, v2));
+    return atan2(v1.x * v2.y - v1.y * v2.x, v1.x * v2.x + v1.y * v2.y);
 }
 
 Vect rotateVect(Vect v, double angle)
@@ -100,4 +110,40 @@ void normalize(Vect *v)
     double n = norm(*v);
     v->x /= n;
     v->y /= n;
+}
+
+bool sphereCollidesWall(SDL_Rect sphere, SDL_Rect wall)
+{
+    double distanceX = abs(sphere.x - wall.x) - wall.w / 2;
+    double distanceY = abs(sphere.y - wall.y) - wall.h / 2;
+
+    if (distanceX > (sphere.w / 2) || distanceY > (sphere.h / 2))
+    {
+        return false;
+    }
+
+    if (distanceX <= 0 ^ distanceY <= 0)
+    {
+        return true;
+    }
+
+    return (distanceX * distanceX + distanceY * distanceY <= (sphere.w / 2) * (sphere.w / 2));
+}
+
+bool __collides(SDL_Rect rect, SDL_Rect rect2, int type)
+{
+    switch (type)
+    {
+        case 0: // Sphere - Sphere
+            return distance((Vect){rect.x, rect.y}, (Vect){rect2.x, rect2.y}) < rect.w / 2 + rect2.w / 2;
+        case 1: // Sphere - Box
+            return sphereCollidesWall(rect, rect2);
+        case 2: // Box - Sphere
+            return sphereCollidesWall(rect2, rect);
+        case 3: // Box - Box
+            return !(rect.x + rect.w < rect2.x || rect.x > rect2.x + rect2.w || rect.y + rect.h < rect2.y || rect.y > rect2.y + rect2.h);
+        default:
+            return false;
+    }
+
 }

@@ -1,9 +1,11 @@
 #include <SDL2/SDL.h>
 #include <math.h>
+#include <assert.h>
 
 #define bool int
 #define true 1
 #define false 0
+#define PI 3.14159265358979323846
 
 typedef struct Vect
 {
@@ -164,3 +166,17 @@ double distance(Vect v1, Vect v2);
  * @param v Vector to normalize
  */
 void normalize(Vect *v);
+
+/**
+ * @brief Check if two objects collide
+ * 
+ * @param rect1 First object
+ * @param rect2 Second object
+ * @param type Type of the objects
+ * 
+ * @return true if the two objects collide, false otherwise
+ */
+bool __collides(SDL_Rect rect1, SDL_Rect rect2, int type);
+
+
+
