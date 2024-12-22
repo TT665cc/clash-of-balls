@@ -112,7 +112,7 @@ void normalize(Vect *v)
     v->y /= n;
 }
 
-bool sphereCollidesWall(SDL_Rect sphere, SDL_Rect wall)
+bool sphereCollidesWall(SDL_FRect sphere, SDL_FRect wall)
 {
     double distanceX = abs(sphere.x - wall.x) - wall.w / 2;
     double distanceY = abs(sphere.y - wall.y) - wall.h / 2;
@@ -122,7 +122,7 @@ bool sphereCollidesWall(SDL_Rect sphere, SDL_Rect wall)
         return false;
     }
 
-    if (distanceX <= 0 ^ distanceY <= 0)
+    if (distanceX <= 0 || distanceY <= 0)
     {
         return true;
     }
@@ -130,7 +130,7 @@ bool sphereCollidesWall(SDL_Rect sphere, SDL_Rect wall)
     return (distanceX * distanceX + distanceY * distanceY <= (sphere.w / 2) * (sphere.w / 2));
 }
 
-bool __collides(SDL_Rect rect, SDL_Rect rect2, int type)
+bool __collides(SDL_FRect rect, SDL_FRect rect2, int type)
 {
     switch (type)
     {

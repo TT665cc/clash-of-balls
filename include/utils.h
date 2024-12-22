@@ -176,7 +176,17 @@ void normalize(Vect *v);
  * 
  * @return true if the two objects collide, false otherwise
  */
-bool __collides(SDL_Rect rect1, SDL_Rect rect2, int type);
+bool __collides(SDL_FRect rect1, SDL_FRect rect2, int type);
+
+/**
+ * @brief Check if a sphere collides with a wall
+ * 
+ * @param sphere Sphere
+ * @param wall Wall
+ * 
+ * @return true if the sphere collides with the wall, false otherwise
+ */
+bool sphereCollidesWall(SDL_FRect sphere, SDL_FRect wall);
 
 
 
