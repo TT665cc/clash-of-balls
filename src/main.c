@@ -75,7 +75,6 @@ void destroyText(Text *text);
 int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window, Text titleText);
 bool welcomeScreen(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window, Text titleText);
 bool replayScreen(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window, Text titleText, int winner);
-void handleWallCollision(Object *ball, Object *wall);
 
 
 int initSDL(void)
@@ -233,6 +232,7 @@ void createBall(Object *objects, int size, double mass, Vect position, Vect spee
             objects[i].num = i;
             objects[i].color = color;
             objects[i].type = 0;
+            objects[i].speed = speed;
 
             if (color == 0)
             {
@@ -242,9 +242,6 @@ void createBall(Object *objects, int size, double mass, Vect position, Vect spee
             {
                 nb_color_balls->y += 1;
             }
-
-            /* Initialiser la vitesse de la boule avec des valeurs aléatoires */
-            objects[i].speed = speed;
 
             break;
         }
@@ -321,7 +318,7 @@ bool canAppear(Vect position, int width, int height, Object *objects, int *num_o
 
         SDL_Rect rect2 = { other->position.x, other->position.y, other->rect.w, other->rect.h };
 
-        if (!__collides(rect, rect2, type | other->type<<1))
+        if (__collides(rect, rect2, type | other->type<<1))
             return false;
     }
     return true;
@@ -407,12 +404,12 @@ void updateObjects(Uint64 elapsedTime, Object *objects, int *num_objects_list, V
 
 void choc(Object *ball1, Object *ball2, int *num_objects_list, Vect *nb_color_balls)
 {
-    if(ball1->type == 0 || ball2->type == 0)
+    if(ball1->type != 0 || ball2->type != 0)
     {
         return;
     }
     int nb_aleat = rand() % 100;
-    if (nb_aleat % 3 != 0 && ball1->texture != ball2->texture)
+    if (nb_aleat % 3 != 0 && ball1->color != ball2->color)
     { /* 1 chance sur 3 égalité */
         if (cineticEnergy(*ball1) * 100 / (cineticEnergy(*ball1) + cineticEnergy(*ball2)) > nb_aleat)
         {
