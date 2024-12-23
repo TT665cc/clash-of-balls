@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "../include/utils.h"
+#include "../include/texture.h"
 
 // Déclarations et définitions inchangées
 
@@ -56,7 +57,7 @@ typedef struct
 } Card;
 
 int loadImagesFromDirectory(const char *directory, SDL_Renderer *renderer, SDL_Texture **textures, int max_textures);
-void createBall(Object *objects, int size, double mass, Vect position, Vect speed, SDL_Texture *texture, int color, Vect *nb_color_balls, int *num_balls_list, bool invincible);
+void createBall(SDL_Renderer *renderer, Object *objects, int size, double mass, Vect position, Vect speed, int color, Vect *nb_color_balls, int *num_balls_list, bool invincible);
 void updateObject(Uint64 dt, Object *object, Object *objects, int num_objet_actuel, int *num_objects_list, Vect *nb_color_balls);
 void updateObjects(Uint64 elapsedTime, Object *objects, int *num_objects_list, Vect *nb_color_balls);
 void drawObject(SDL_Renderer *renderer, Object *object);
@@ -66,10 +67,11 @@ void ballCollision(Object *o1, Object *o2);
 void wallCollision(Object *ball, Object *wall);
 bool canAppear(Vect position, int width, int height, Object *objects, int *num_objects_list, int type);
 void deleteObject(Object object, int *num_objects_list, Vect *nb_color_balls);
+void deleteAllObjects(Object *objects, int *num_objects_list, Vect *nb_color_balls);
 double cineticEnergy(Object object);
 void choc(Object *ball1, Object *ball2, int *num_objects_list, Vect *nb_color_balls);
 void drawTransparentRectangle(SDL_Renderer *renderer, int x, int y, int width, int height, Uint8 r, Uint8 g, Uint8 b, Uint8 alpha);
-void aiPlay(int *num_s_list, Object *objects, SDL_Texture *texture, Vect *nb_color_balls);
+void aiPlay(SDL_Renderer *renderer, int *num_objects_list, Object *objects, Vect *nb_color_balls);
 Text createText(SDL_Renderer *renderer, TTF_Font *font, const char *text, SDL_Color color);
 void drawText(SDL_Renderer *renderer, Text *text, SDL_Rect destRect);
 void destroyText(Text *text);
@@ -107,7 +109,7 @@ int main(void)
 
     
 
-    int max_textures = 11;
+    int max_textures = 5;
 
     SDL_Texture **textures = malloc(sizeof(SDL_Texture *) * max_textures);
 
@@ -124,7 +126,7 @@ int main(void)
 
     // Charger les textures
     int nb_textures = loadImagesFromDirectory("./img", renderer, textures, max_textures);
-    
+
 
     TTF_Font *font = TTF_OpenFont("Jersey_Sharp.ttf", 32);
     if (!font)
@@ -215,7 +217,7 @@ void drawTransparentRectangle(SDL_Renderer *renderer, int x, int y, int width, i
     SDL_RenderFillRect(renderer, &rect);
 }
 
-void createBall(Object *objects, int size, double mass, Vect position, Vect speed, SDL_Texture *texture, int color, Vect *nb_color_balls, int *num_objects_list, bool invincible)
+void createBall(SDL_Renderer *renderer, Object *objects, int size, double mass, Vect position, Vect speed, int color, Vect *nb_color_balls, int *num_objects_list, bool invincible)
 {
     for (int i = 0; i < max_objects; i++)
     {
@@ -226,7 +228,7 @@ void createBall(Object *objects, int size, double mass, Vect position, Vect spee
             objects[i].rect.h = size;
             objects[i].rect.x = floor(position.x - size / 2);
             objects[i].rect.y = floor(position.y - size / 2);
-            objects[i].texture = texture;
+            objects[i].texture = createCircleTexture(renderer, size / 2, color);
             objects[i].position = position;
             objects[i].mass = mass;
             objects[i].colliding = -1;
@@ -274,20 +276,25 @@ void createWall(Object *objects, int width, int height, Vect position, SDL_Textu
     }
 }
 
-void aiPlay(int *num_balls_list, Object *balls, SDL_Texture *texture, Vect *nb_color_balls)
+void aiPlay(SDL_Renderer *renderer, int *num_objects_list, Object *balls, Vect *nb_color_balls)
 {
     int max_speed = 500;
     Vect position = (Vect){100, rand() % ARENA_HEIGHT};
     Vect vitesse = (Vect){rand() % max_speed, -(rand() % max_speed)};
-    if (canAppear(position, 40, 40, balls, num_balls_list, 0))
+    if (canAppear(position, 40, 40, balls, num_objects_list, 0))
     {
-        createBall(balls, 60, 60, position, vitesse, texture, 0, nb_color_balls, num_balls_list, false);
+        createBall(renderer, balls, 60, 60, position, vitesse, 0, nb_color_balls, num_objects_list, false);
     }
 }
 
 void deleteObject(Object object, int *num_objects_list, Vect *nb_color_balls)
 {
     num_objects_list[object.num] = 0;
+    if (object.texture != NULL)
+    {
+        SDL_DestroyTexture(object.texture);
+        object.texture = NULL;
+    }
     if (object.type != 0)
         return;
     if (object.color == 0)
@@ -297,6 +304,17 @@ void deleteObject(Object object, int *num_objects_list, Vect *nb_color_balls)
     else
     {
         nb_color_balls->y -= 1;
+    }
+}
+
+void deleteAllObjects(Object *objects, int *num_objects_list, Vect *nb_color_balls)
+{
+    for (int i = 0; i < max_objects; i++)
+    {
+        if (num_objects_list[i] == 1)
+        {
+            deleteObject(objects[i], num_objects_list, nb_color_balls);
+        }
     }
 }
 
@@ -505,77 +523,6 @@ double cineticEnergy(Object object)
     return object.mass * speed * speed;
 }
 
-int loadImagesFromDirectory(const char *directory, SDL_Renderer *renderer, SDL_Texture **textures, int max_textures)
-{
-    DIR *dir;
-    struct dirent *ent;
-    struct stat *st = malloc(sizeof(struct stat));
-    int texture_count = 0;
-
-    printf("Chargement des images du répertoire: %s\n", directory);
-
-    if ((dir = opendir(directory)) != NULL)
-    {
-        while ((ent = readdir(dir)) != NULL && texture_count < max_textures)
-        {
-
-            char filepath[512];
-            sprintf(filepath, "%s/%s", directory, ent->d_name);
-
-            if (stat(filepath, st) == -1)
-            {
-                fprintf(stderr, "Erreur lors de la récupération des informations sur le fichier: %s\n", ent->d_name);
-                continue;
-            }
-
-            if (S_ISREG(st->st_mode))
-            {
-
-                SDL_Surface *surf = SDL_LoadBMP(filepath);
-                if (!surf)
-                {
-                    fprintf(stderr, "Erreur de chargement de l'image: %s\n", SDL_GetError());
-                    continue;
-                }
-
-                SDL_Texture *imageTexture = SDL_CreateTextureFromSurface(renderer, surf);
-                SDL_FreeSurface(surf);
-                if (imageTexture)
-                {
-                    /* L'indice de texture est le premier chiffre du nom du fichier (peut prendre plusieurs chiffres) */
-
-                    int texture_index = partialAtoi(ent->d_name);
-
-                    if (texture_index < 0 || texture_index >= max_textures)
-                    {
-                        fprintf(stderr, "Indice de texture invalide: %d\n", texture_index);
-                        continue;
-                    }
-
-                    textures[texture_index] = imageTexture;
-
-                    texture_count++;
-                }
-                else
-                {
-                    fprintf(stderr, "Erreur lors de la création de la texture: %s\n", SDL_GetError());
-                }
-                printf("Chargement de l'image: %s\n", filepath);
-            }
-        }
-        closedir(dir);
-    }
-    else
-    {
-        fprintf(stderr, "Erreur lors de l'ouverture du répertoire: %s\n", directory);
-        return -1;
-    }
-
-    free(st);
-
-    return texture_count;
-}
-
 int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window, Text titleText) {
     int num_objects_list[max_objects];
     Vect nb_color_balls = (Vect){0, 0}; /* x: blanches, y: noire*/
@@ -609,7 +556,7 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
     for (int i = 0; i < nb_cards; i++)
     {
         int k = i % 3;
-        cards[i].texture = textures[9];
+        cards[i].texture = textures[3];
         cards[i].rect.x = 900 - 375 * (k % 2) + 125 * k; // tkt c'est pas compliqué (première au centre, deuxième à gauche, troisième à droite)
         cards[i].rect.y = 150 + 400 * (i / 3);                       // on change de ligne tous les 3
         cards[i].rect.w = 150;
@@ -620,11 +567,11 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
 
     // Ajouter quelques boules initiales
     //createBall(balls, 50, 10, (Vect){100.0, 100.0}, (Vect){600.0, 900.0}, textures[0], 0, &nb_color_balls, num_objects_list);
-    createBall(objects, 60, 20, (Vect){300.0, 200.0}, (Vect){0.0, 0.0}, textures[3], 1, &nb_color_balls, num_objects_list, true);
-    createBall(objects, 90, 800, (Vect){400.0, 300.0}, (Vect){-100.0, 40.0}, textures[0], 0, &nb_color_balls, num_objects_list, true);
+    createBall(renderer, objects, 60, 20, (Vect){300.0, 200.0}, (Vect){0.0, 0.0}, 1, &nb_color_balls, num_objects_list, true);
+    createBall(renderer, objects, 90, 800, (Vect){400.0, 300.0}, (Vect){-100.0, 40.0}, 0, &nb_color_balls, num_objects_list, true);
 
     // Ajouter quelques murs
-    createWall(objects, 180, 20, (Vect){ARENA_WIDTH / 2, ARENA_HEIGHT / 2}, textures[9], num_objects_list);
+    createWall(objects, 180, 20, (Vect){ARENA_WIDTH / 2, ARENA_HEIGHT / 2}, textures[3], num_objects_list);
 
     Vect mousePos = {0, 0};
 
@@ -666,7 +613,7 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
                     if (cards[i].exist && isInBox((Vect){mouseX, mouseY}, cards[i].rect))
                     {
                         cards[i].is_selected = true;
-                        cards[i].texture = textures[8];
+                        cards[i].texture = textures[2];
 
                         for (int j = 0; j < nb_cards; j++)
                         {
@@ -675,7 +622,7 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
                                 cards[j].is_selected = false;
                                 if (cards[j].exist)
                                 {
-                                    cards[j].texture = textures[9];
+                                    cards[j].texture = textures[3];
                                 }
                             }
                         }
@@ -696,12 +643,12 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
                             /* Créer une boule avec la position de la souris et une vitesse aléatoire */
                             Vect speed = (Vect){rand() % 1000 - 500, rand() % 1000 - 500};
 
-                            createBall(objects, 60, 20,
+                            createBall(renderer, objects, 60, 20,
                                        (Vect){mouseXInArena, mouseYInArena},
-                                       speed, textures[3], 1, &nb_color_balls, num_objects_list, false);
+                                       speed, 1, &nb_color_balls, num_objects_list, false);
                             cards[i].is_selected = false;
                             cards[i].exist = false;
-                            cards[i].texture = textures[6];
+                            cards[i].texture = textures[0];
                             draw_t_ball = false;
                         }
                     }
@@ -733,7 +680,7 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
         if (currentTime - lastTime_cartes >= 5000 && (!cards[3].exist))
         {
             lastTime_cartes = currentTime;
-            cards[3].texture = textures[9];
+            cards[3].texture = textures[3];
             cards[3].exist = true;
         }
 
@@ -749,16 +696,18 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
 
             if (rand() % 100 < proba * 100)
             {
-                aiPlay(num_objects_list, objects, textures[0], &nb_color_balls);
+                aiPlay(renderer, num_objects_list, objects, &nb_color_balls);
             }
             printf("\nboules blanches: %d; boules noires: %d\n", (int)(nb_color_balls.x), (int)(nb_color_balls.y));
         }
 
         if (nb_color_balls.x == 0)
         {
+            deleteAllObjects(objects, num_objects_list, &nb_color_balls);
             return 1;
         } else if (nb_color_balls.y == 0)
         {
+            deleteAllObjects(objects, num_objects_list, &nb_color_balls);
             return 0;
         }
 
@@ -792,7 +741,7 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
 
         if (draw_t_ball)
         {
-            SDL_RenderCopy(renderer, textures[10], NULL, &t_ball);
+            SDL_RenderCopy(renderer, textures[4], NULL, &t_ball);
         }
 
         // Réinitialiser le viewport pour dessiner des éléments extérieurs
