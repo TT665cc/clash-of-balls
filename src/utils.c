@@ -114,34 +114,24 @@ void normalize(Vect *v)
 
 bool sphereCollidesWall(SDL_FRect sphere, SDL_FRect wall)
 {
-    double distanceX = abs(sphere.x - wall.x) - wall.w / 2;
-    double distanceY = abs(sphere.y - wall.y) - wall.h / 2;
 
-    if (distanceX > (sphere.w / 2) || distanceY > (sphere.h / 2))
-    {
-        return false;
-    }
+    Vect dist = (Vect){fmax(fabs(sphere.x - wall.x) - wall.w / 2, 0.0), fmax(fabs(sphere.y - wall.y) - wall.h / 2, 0.0)};
 
-    if (distanceX <= 0 || distanceY <= 0)
-    {
-        return true;
-    }
-
-    return (distanceX * distanceX + distanceY * distanceY <= (sphere.w / 2) * (sphere.w / 2));
+    return (norm(dist) <= sphere.w / 2);
 }
 
-bool __collides(SDL_FRect rect, SDL_FRect rect2, int type)
+bool __collides(SDL_FRect rect1, SDL_FRect rect2, int type)
 {
     switch (type)
     {
         case 0: // Sphere - Sphere
-            return distance((Vect){rect.x, rect.y}, (Vect){rect2.x, rect2.y}) < rect.w / 2 + rect2.w / 2;
+            return distance((Vect){rect1.x, rect1.y}, (Vect){rect2.x, rect2.y}) < rect1.w / 2 + rect2.w / 2;
         case 1: // Sphere - Box
-            return sphereCollidesWall(rect, rect2);
+            return sphereCollidesWall(rect2, rect1);
         case 2: // Box - Sphere
-            return sphereCollidesWall(rect2, rect);
+            return sphereCollidesWall(rect1, rect2);
         case 3: // Box - Box
-            return !(rect.x + rect.w < rect2.x || rect.x > rect2.x + rect2.w || rect.y + rect.h < rect2.y || rect.y > rect2.y + rect2.h);
+            return !(rect1.x + rect1.w < rect2.x || rect1.x > rect2.x + rect2.w || rect1.y + rect1.h < rect2.y || rect1.y > rect2.y + rect2.h);
         default:
             return false;
     }

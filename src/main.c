@@ -22,7 +22,7 @@ const int SCREEN_HEIGHT = 950; // Hauteur de la fenêtre
 
 #define max_objects 100
 
-typedef struct
+typedef struct Object
 {
     SDL_Rect rect;        /* Affichage de la boule */
     Vect speed;           /* Vitesse de la boule */
@@ -38,7 +38,7 @@ typedef struct
 } Object;
 
 
-typedef struct
+typedef struct Text
 {
     SDL_Texture *texture;
     int width;
@@ -47,7 +47,7 @@ typedef struct
     SDL_Color color;
 } Text;
 
-typedef struct
+typedef struct Card
 {
     SDL_Texture *texture;
     SDL_Rect rect;
@@ -58,6 +58,7 @@ typedef struct
 
 int loadImagesFromDirectory(const char *directory, SDL_Renderer *renderer, SDL_Texture **textures, int max_textures);
 void createBall(SDL_Renderer *renderer, Object *objects, int size, double mass, Vect position, Vect speed, int color, Vect *nb_color_balls, int *num_balls_list, bool invincible);
+void createWall(SDL_Renderer *renderer, Object *objects, int width, int height, Vect position, int color, int *num_objects_list);
 void updateObject(Uint64 dt, Object *object, Object *objects, int num_objet_actuel, int *num_objects_list, Vect *nb_color_balls);
 void updateObjects(Uint64 elapsedTime, Object *objects, int *num_objects_list, Vect *nb_color_balls);
 void drawObject(SDL_Renderer *renderer, Object *object);
@@ -252,7 +253,7 @@ void createBall(SDL_Renderer *renderer, Object *objects, int size, double mass, 
     }
 }
 
-void createWall(Object *objects, int width, int height, Vect position, SDL_Texture *texture, int *num_objects_list)
+void createWall(SDL_Renderer *renderer, Object *objects, int width, int height, Vect position, int color, int *num_objects_list)
 {
     for (int i = 0; i < max_objects; i++)
     {
@@ -261,9 +262,9 @@ void createWall(Object *objects, int width, int height, Vect position, SDL_Textu
             num_objects_list[i] = 1;
             objects[i].rect.w = width;
             objects[i].rect.h = height;
-            objects[i].rect.x = floor(position.x - width / 2);
-            objects[i].rect.y = floor(position.y - height / 2);
-            objects[i].texture = texture;
+            objects[i].rect.x = (int) floor(position.x - width / 2);
+            objects[i].rect.y = (int) floor(position.y - height / 2);
+            objects[i].texture = createRectangleTexture(renderer, width, height, color);
             objects[i].position = position;
             objects[i].mass = 0;
             objects[i].colliding = -1;
@@ -350,7 +351,7 @@ bool canAppear(Vect position, int width, int height, Object *objects, int *num_o
         return false;
     }
 
-    SDL_FRect rect = { position.x, position.y, width, height };
+    SDL_FRect rect1 = { position.x, position.y, width, height };
 
     for (int i = 0; i < max_objects; i++)
     {
@@ -362,7 +363,7 @@ bool canAppear(Vect position, int width, int height, Object *objects, int *num_o
 
         SDL_FRect rect2 = { other->position.x, other->position.y, other->rect.w, other->rect.h };
 
-        if (__collides(rect, rect2, type | other->type<<1))
+        if (__collides(rect1, rect2, type | other->type<<1))
             return false;
     }
     return true;
@@ -408,7 +409,7 @@ void updateObject(Uint64 dt, Object *object, Object *objects, int num_boule_actu
         {
             Object *other = &objects[i];
 
-            if(collides(object, other) && object->colliding == -1 && other->colliding == -1)
+            if(object->colliding == -1 && other->colliding == -1 && collides(object, other))
             {
                 handleCollision(object, other);
                 object->colliding = i;
@@ -416,7 +417,7 @@ void updateObject(Uint64 dt, Object *object, Object *objects, int num_boule_actu
                 choc(object, other, num_objects_list, nb_color_balls);
             }
 
-            if (!collides(object, other) && (object->colliding == i && other->colliding == num_boule_actuelle))
+            if ((object->colliding == i && other->colliding == num_boule_actuelle) && !collides(object, other))
             {
                 object->colliding = -1;
                 other->colliding = -1;
@@ -571,7 +572,7 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
     createBall(renderer, objects, 90, 800, (Vect){400.0, 300.0}, (Vect){-100.0, 40.0}, 0, &nb_color_balls, num_objects_list, true);
 
     // Ajouter quelques murs
-    createWall(objects, 180, 20, (Vect){ARENA_WIDTH / 2, ARENA_HEIGHT / 2}, textures[3], num_objects_list);
+    createWall(renderer, objects, 180, 20, (Vect){ARENA_WIDTH / 2, ARENA_HEIGHT / 2}, 1, num_objects_list);
 
     Vect mousePos = {0, 0};
 
@@ -653,7 +654,6 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
                         }
                     }
                 }
-                printf("Clic gauche détecté en (%d, %d)\n", event.button.x, event.button.y);
             }
             else if (event.type == SDL_MOUSEMOTION)
             {
@@ -698,7 +698,6 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
             {
                 aiPlay(renderer, num_objects_list, objects, &nb_color_balls);
             }
-            printf("\nboules blanches: %d; boules noires: %d\n", (int)(nb_color_balls.x), (int)(nb_color_balls.y));
         }
 
         if (nb_color_balls.x == 0)
@@ -773,7 +772,7 @@ bool welcomeScreen(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *w
     {
         while (SDL_PollEvent(&event))
         {
-            if (event.type == SDL_QUIT || event.key.keysym.sym == SDLK_ESCAPE)
+            if (event.type == SDL_QUIT || ( event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE))
             {
                 isRunning = false;
                 
