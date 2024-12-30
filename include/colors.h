@@ -6,7 +6,7 @@
 
 struct rgb {
 	int r, g, b;
-} const lut[] = {
+} const colors[] = {
     {255, 255, 255},	/* white */
     {  0,   0,   0},    /* black */
 	{230,  25,  75},	/* red */

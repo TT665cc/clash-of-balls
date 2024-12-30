@@ -31,15 +31,8 @@ int loadImagesFromDirectory(const char *directory, SDL_Renderer *renderer, SDL_T
             if (S_ISREG(st->st_mode))
             {
 
-                SDL_Surface *surf = SDL_LoadBMP(filepath);
-                if (!surf)
-                {
-                    fprintf(stderr, "Erreur de chargement de l'image: %s\n", SDL_GetError());
-                    continue;
-                }
+                SDL_Texture *imageTexture = loadTexture(filepath, renderer);
 
-                SDL_Texture *imageTexture = SDL_CreateTextureFromSurface(renderer, surf);
-                SDL_FreeSurface(surf);
                 if (imageTexture)
                 {
                     /* L'indice de texture est le premier chiffre du nom du fichier (peut prendre plusieurs chiffres) */
@@ -60,7 +53,6 @@ int loadImagesFromDirectory(const char *directory, SDL_Renderer *renderer, SDL_T
                 {
                     fprintf(stderr, "Erreur lors de la création de la texture: %s\n", SDL_GetError());
                 }
-                printf("Chargement de l'image: %s\n", filepath);
             }
         }
         closedir(dir);
@@ -114,20 +106,18 @@ SDL_Texture *createCircleTexture(SDL_Renderer *renderer, int radius, int color)
             {
                 // Anti-aliasing
 
-                // If the pixel is on the edge of the circle, we make it a bit transparent
-
-                if (x * x + y * y > (radius - 1) * (radius - 1))
+                if (x * x + y * y > (radius - 1) * (radius - 1)) // Si on est sur le bord du cercle (transparence progressive)
                 {
                     Uint8 r, g, b, a;
-                    SDL_GetRGBA(SDL_MapRGB(surf->format, lut[color].r, lut[color].g, lut[color].b), surf->format, &r, &g, &b, &a);
+                    SDL_GetRGBA(SDL_MapRGB(surf->format, colors[color].r, colors[color].g, colors[color].b), surf->format, &r, &g, &b, &a);
                     a = 255 - (255 * (x * x + y * y - (radius - 1) * (radius - 1))) / (radius * radius - (radius - 1) * (radius - 1));
                     SDL_Rect pixel = {x + radius, y + radius, 1, 1};
                     SDL_FillRect(surf, &pixel, SDL_MapRGBA(surf->format, r, g, b, a));
                 }
-                else
+                else // Si on est à l'intérieur du cercle (pas de transparence)
                 {
                     SDL_Rect pixel = {x + radius, y + radius, 1, 1};
-                    SDL_FillRect(surf, &pixel, SDL_MapRGB(surf->format, lut[color].r, lut[color].g, lut[color].b));
+                    SDL_FillRect(surf, &pixel, SDL_MapRGB(surf->format, colors[color].r, colors[color].g, colors[color].b));
                 }
 
             }
@@ -153,7 +143,7 @@ SDL_Texture *createRectangleTexture(SDL_Renderer *renderer, int width, int heigh
         return NULL;
     }
 
-    SDL_FillRect(surf, NULL, SDL_MapRGB(surf->format, lut[color].r, lut[color].g, lut[color].b));
+    SDL_FillRect(surf, NULL, SDL_MapRGB(surf->format, colors[color].r, colors[color].g, colors[color].b));
 
     SDL_Texture *imageTexture = SDL_CreateTextureFromSurface(renderer, surf);
     SDL_FreeSurface(surf);

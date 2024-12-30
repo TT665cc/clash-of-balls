@@ -2,41 +2,23 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
-#include <stdlib.h>
 #include <time.h>
 #include <math.h>
-#include <dirent.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+
 #include "../include/utils.h"
 #include "../include/texture.h"
+#include "../include/physics.h"
 
 // Déclarations et définitions inchangées
 
 const int ARENA_WIDTH = 480;   // Largeur de l'arène
 const int ARENA_HEIGHT = 854;  // Hauteur de l'arène
+const Vect ARENA_DIMENSIONS = {ARENA_WIDTH, ARENA_HEIGHT};
 const int SCREEN_WIDTH = 1400; // Largeur de la fenêtre
 const int SCREEN_HEIGHT = 950; // Hauteur de la fenêtre
-
-#define max_objects 100
-
-typedef struct Object
-{
-    SDL_Rect rect;        /* Affichage de la boule */
-    Vect speed;           /* Vitesse de la boule */
-    Vect position;        /* Position de la boule */
-    SDL_Texture *texture; /* Texture de la boule */
-    double mass;
-    int colliding;
-    int life;
-    int num;
-    int color; /* 0 pour blanc, 1 pour noir */
-    int type; /* Balle : 0, Mur : 1 */
-    bool invincible;
-} Object;
-
+const int FPS = 100;           // Nombre d'images par seconde
 
 typedef struct Text
 {
