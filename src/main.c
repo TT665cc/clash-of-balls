@@ -10,6 +10,8 @@
 #include "../include/utils.h"
 #include "../include/texture.h"
 #include "../include/physics.h"
+#include "../include/server.h"
+#include "../include/client.h"
 
 // Déclarations et définitions inchangées
 
@@ -38,21 +40,9 @@ typedef struct Card
     int type;
 } Card;
 
-int loadImagesFromDirectory(const char *directory, SDL_Renderer *renderer, SDL_Texture **textures, int max_textures);
-void createBall(SDL_Renderer *renderer, Object *objects, int size, double mass, Vect position, Vect speed, int color, Vect *nb_color_balls, int *num_balls_list, bool invincible);
-void createWall(SDL_Renderer *renderer, Object *objects, int width, int height, Vect position, int color, int *num_objects_list);
-void updateObject(Uint64 dt, Object *object, Object *objects, int num_objet_actuel, int *num_objects_list, Vect *nb_color_balls);
-void updateObjects(Uint64 elapsedTime, Object *objects, int *num_objects_list, Vect *nb_color_balls);
 void drawObject(SDL_Renderer *renderer, Object *object);
 void drawObjects(SDL_Renderer *renderer, Object *objects, int *num_object_list);
 void cleanup(SDL_Window *window, SDL_Renderer *renderer, int nb_textures, SDL_Texture **textures);
-void ballCollision(Object *o1, Object *o2);
-void wallCollision(Object *ball, Object *wall);
-bool canAppear(Vect position, int width, int height, Object *objects, int *num_objects_list, int type);
-void deleteObject(Object object, int *num_objects_list, Vect *nb_color_balls);
-void deleteAllObjects(Object *objects, int *num_objects_list, Vect *nb_color_balls);
-double cineticEnergy(Object object);
-void choc(Object *ball1, Object *ball2, int *num_objects_list, Vect *nb_color_balls);
 void drawTransparentRectangle(SDL_Renderer *renderer, int x, int y, int width, int height, Uint8 r, Uint8 g, Uint8 b, Uint8 alpha);
 void aiPlay(SDL_Renderer *renderer, int *num_objects_list, Object *objects, Vect *nb_color_balls);
 Text createText(SDL_Renderer *renderer, TTF_Font *font, const char *text, SDL_Color color);
@@ -81,8 +71,7 @@ int initSDL(void)
 
 int main(void)
 {
-    srand(time(NULL));
-
+    // Initialisation de la graine pour les nombres aléatoires
     srand(time(NULL));
 
     if (initSDL() < 0)
@@ -200,261 +189,14 @@ void drawTransparentRectangle(SDL_Renderer *renderer, int x, int y, int width, i
     SDL_RenderFillRect(renderer, &rect);
 }
 
-void createBall(SDL_Renderer *renderer, Object *objects, int size, double mass, Vect position, Vect speed, int color, Vect *nb_color_balls, int *num_objects_list, bool invincible)
-{
-    for (int i = 0; i < max_objects; i++)
-    {
-        if (num_objects_list[i] == 0)
-        {
-            num_objects_list[i] = 1;
-            objects[i].rect.w = size;
-            objects[i].rect.h = size;
-            objects[i].rect.x = floor(position.x - size / 2);
-            objects[i].rect.y = floor(position.y - size / 2);
-            objects[i].texture = createCircleTexture(renderer, size / 2, color);
-            objects[i].position = position;
-            objects[i].mass = mass;
-            objects[i].colliding = -1;
-            objects[i].num = i;
-            objects[i].color = color;
-            objects[i].type = 0;
-            objects[i].speed = speed;
-            objects[i].invincible = invincible;
-
-            if (color == 0)
-            {
-                nb_color_balls->x += 1;
-            }
-            else
-            {
-                nb_color_balls->y += 1;
-            }
-
-            break;
-        }
-    }
-}
-
-void createWall(SDL_Renderer *renderer, Object *objects, int width, int height, Vect position, int color, int *num_objects_list)
-{
-    for (int i = 0; i < max_objects; i++)
-    {
-        if (num_objects_list[i] == 0)
-        {
-            num_objects_list[i] = 1;
-            objects[i].rect.w = width;
-            objects[i].rect.h = height;
-            objects[i].rect.x = (int) floor(position.x - width / 2);
-            objects[i].rect.y = (int) floor(position.y - height / 2);
-            objects[i].texture = createRectangleTexture(renderer, width, height, color);
-            objects[i].position = position;
-            objects[i].mass = 0;
-            objects[i].colliding = -1;
-            objects[i].num = i;
-            objects[i].color = 0;
-            objects[i].type = 1;
-            objects[i].speed = (Vect){0, 0};
-            break;
-        }
-    }
-}
-
 void aiPlay(SDL_Renderer *renderer, int *num_objects_list, Object *balls, Vect *nb_color_balls)
 {
     int max_speed = 500;
     Vect position = (Vect){100, rand() % ARENA_HEIGHT};
     Vect vitesse = (Vect){rand() % max_speed, -(rand() % max_speed)};
-    if (canAppear(position, 40, 40, balls, num_objects_list, 0))
+    if (canAppear(position, 40, 40, balls, num_objects_list, 0, ARENA_DIMENSIONS))
     {
-        createBall(renderer, balls, 60, 60, position, vitesse, 0, nb_color_balls, num_objects_list, false);
-    }
-}
-
-void deleteObject(Object object, int *num_objects_list, Vect *nb_color_balls)
-{
-    num_objects_list[object.num] = 0;
-    if (object.texture != NULL)
-    {
-        SDL_DestroyTexture(object.texture);
-        object.texture = NULL;
-    }
-    if (object.type != 0)
-        return;
-    if (object.color == 0)
-    {
-        nb_color_balls->x -= 1;
-    }
-    else
-    {
-        nb_color_balls->y -= 1;
-    }
-}
-
-void deleteAllObjects(Object *objects, int *num_objects_list, Vect *nb_color_balls)
-{
-    for (int i = 0; i < max_objects; i++)
-    {
-        if (num_objects_list[i] == 1)
-        {
-            deleteObject(objects[i], num_objects_list, nb_color_balls);
-        }
-    }
-}
-
-Vect posCenter(Object *object)
-{
-    Vect res;
-    res.x = object->position.x + object->rect.w / 2;
-    res.y = object->position.y + object->rect.h / 2;
-    return res;
-}
-
-void ballCollision(Object *b1, Object *b2)
-{
-    // Calcul de la différence de position et de vitesse
-    Vect delta_p = addVect(b1->position, b2->position, -1);
-
-    normalize(&delta_p);
-
-    double p = 2 * (dot(b1->speed, delta_p) - dot(b2->speed, delta_p)) / (b1->mass + b2->mass);
-
-    b1->speed = addVect(b1->speed, delta_p, -p * b2->mass);
-    b2->speed = addVect(b2->speed, delta_p, p * b1->mass);
-}
-
-bool canAppear(Vect position, int width, int height, Object *objects, int *num_objects_list, int type)
-{
-    if ((position.x - width / 2 <= 0) || (position.x + width / 2 >= ARENA_WIDTH))
-    {
-        return false;
-    }
-    if ((position.y - height / 2 <= 0) || (position.y + height / 2 >= ARENA_HEIGHT))
-    {
-        return false;
-    }
-
-    SDL_FRect rect1 = { position.x, position.y, width, height };
-
-    for (int i = 0; i < max_objects; i++)
-    {
-        if (num_objects_list[i] == 0)
-        {
-            continue;
-        }
-        Object *other = &objects[i];
-
-        SDL_FRect rect2 = { other->position.x, other->position.y, other->rect.w, other->rect.h };
-
-        if (__collides(rect1, rect2, type | other->type<<1))
-            return false;
-    }
-    return true;
-}
-
-double collides(Object *o1, Object *o2)
-{
-    SDL_FRect rect1 = {o1->position.x, o1->position.y, o1->rect.w, o1->rect.h};
-    SDL_FRect rect2 = {o2->position.x, o2->position.y, o2->rect.w, o2->rect.h};
-
-    return __collides(rect1, rect2, o1->type | o2->type<<1);
-}
-
-void handleCollision(Object *o1, Object *o2)
-{
-    if (o1->type == 1)
-    {
-        wallCollision(o2, o1);
-    }
-    else if (o2->type == 1)
-    {
-        wallCollision(o1, o2);
-    } else {
-        ballCollision(o1, o2);
-    }
-}
-
-void updateObject(Uint64 dt, Object *object, Object *objects, int num_boule_actuelle, int *num_objects_list, Vect *nb_color_balls)
-{
-
-    if ((object->rect.x <= 0 && object->speed.x < 0) || (object->rect.x + object->rect.w >= ARENA_WIDTH && object->speed.x > 0))
-    {
-        object->speed.x *= -1;
-    }
-    if ((object->rect.y <= 0 && object->speed.y < 0) || (object->rect.y + object->rect.h >= ARENA_HEIGHT && object->speed.y > 0))
-    {
-        object->speed.y *= -1;
-    }
-
-    for (int i = num_boule_actuelle + 1; i < max_objects; i++)
-    {
-        if (num_objects_list[i] == 1)
-        {
-            Object *other = &objects[i];
-
-            if(object->colliding == -1 && other->colliding == -1 && collides(object, other))
-            {
-                handleCollision(object, other);
-                object->colliding = i;
-                other->colliding = num_boule_actuelle;
-                choc(object, other, num_objects_list, nb_color_balls);
-            }
-
-            if ((object->colliding == i && other->colliding == num_boule_actuelle) && !collides(object, other))
-            {
-                object->colliding = -1;
-                other->colliding = -1;
-            }
-        }
-    }
-}
-
-void updateObjects(Uint64 elapsedTime, Object *objects, int *num_objects_list, Vect *nb_color_balls)
-{
-    for (int i = 0; i < max_objects; i++)
-    {
-        if (num_objects_list[i] == 1)
-        {
-            updateObject(elapsedTime, &objects[i], objects, i, num_objects_list, nb_color_balls);
-        }
-    }
-
-    for (int i = 0; i < max_objects; i++)
-    {
-        if (num_objects_list[i] == 1)
-        {
-            objects[i].position = addVect(objects[i].position, objects[i].speed, elapsedTime / 1000.0);
-            objects[i].rect.x = floor(objects[i].position.x - objects[i].rect.w / 2);
-            objects[i].rect.y = floor(objects[i].position.y - objects[i].rect.h / 2);
-        }
-    }
-}
-
-void choc(Object *ball1, Object *ball2, int *num_objects_list, Vect *nb_color_balls)
-{
-    if(ball1->type != 0 || ball2->type != 0)
-    {
-        return;
-    }
-    int nb_aleat = rand() % 100;
-    if (nb_aleat % 3 != 0 && ball1->color != ball2->color)
-    { /* 1 chance sur 3 égalité */
-
-        if (ball1->invincible && ball2->invincible)
-        {
-            return;
-        }
-        else if (ball1-> invincible || cineticEnergy(*ball1) * 100 / (cineticEnergy(*ball1) + cineticEnergy(*ball2)) > nb_aleat)
-        {
-            /* ball1 gagne */
-            deleteObject(*ball2, num_objects_list, nb_color_balls);
-            ball1->colliding = -1;
-        }
-        else
-        {
-            /* ball2 gagne */
-            deleteObject(*ball1, num_objects_list, nb_color_balls);
-            ball2->colliding = -1;
-        }
+        createBall(renderer, balls, 30, 60, position, vitesse, 0, nb_color_balls, num_objects_list, false);
     }
 }
 
@@ -500,11 +242,7 @@ void cleanup(SDL_Window *window, SDL_Renderer *renderer, int nb_textures, SDL_Te
     SDL_Quit();
 }
 
-double cineticEnergy(Object object)
-{
-    double speed = norm(object.speed);
-    return object.mass * speed * speed;
-}
+
 
 int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window, Text titleText) {
     int num_objects_list[max_objects];
@@ -550,8 +288,8 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
 
     // Ajouter quelques boules initiales
     //createBall(balls, 50, 10, (Vect){100.0, 100.0}, (Vect){600.0, 900.0}, textures[0], 0, &nb_color_balls, num_objects_list);
-    createBall(renderer, objects, 60, 20, (Vect){300.0, 200.0}, (Vect){0.0, 0.0}, 1, &nb_color_balls, num_objects_list, true);
-    createBall(renderer, objects, 90, 800, (Vect){400.0, 300.0}, (Vect){-100.0, 40.0}, 0, &nb_color_balls, num_objects_list, true);
+    createBall(renderer, objects, 30, 20, (Vect){300.0, 200.0}, (Vect){0.0, 0.0}, 1, &nb_color_balls, num_objects_list, true);
+    createBall(renderer, objects, 45, 800, (Vect){400.0, 300.0}, (Vect){-100.0, 40.0}, 0, &nb_color_balls, num_objects_list, true);
 
     // Ajouter quelques murs
     createWall(renderer, objects, 180, 20, (Vect){ARENA_WIDTH / 2, ARENA_HEIGHT / 2}, 1, num_objects_list);
@@ -562,14 +300,16 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
 
     bool isRunning = true;
     SDL_Event event;
-    Uint64 lastTime = SDL_GetTicks();
+    Uint64 lastTime = SDL_GetTicks64();
     Uint64 lastTime_cartes = SDL_GetTicks64();
-    Uint64 frameTime = SDL_GetTicks();
+    Uint64 frameTime = SDL_GetTicks64();
+    Uint64 lastTimeAI = SDL_GetTicks64();
     Uint64 elapsedTime = 0;
     int frameCount = 0;
 
     while (isRunning)
     {
+
         // Configurer le viewport pour l'arène
         SDL_Rect arenaViewport = {
             .x = (SCREEN_WIDTH - ARENA_WIDTH) / 10,
@@ -586,7 +326,7 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
                 isRunning = false;
                 return -1;
             }
-            else if (event.type == SDL_MOUSEBUTTONDOWN)
+            else if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT)
             {
                 int mouseX = event.button.x;
                 int mouseY = event.button.y;
@@ -621,12 +361,14 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
                         draw_t_ball = true;
 
                         if (event.button.button == SDL_BUTTON_LEFT &&
-                            canAppear((Vect){mouseXInArena - 30, mouseYInArena - 30}, 60, 60, objects, num_objects_list, cards[i].type))
+                            canAppear((Vect){mouseXInArena, mouseYInArena}, t_ball.w, t_ball.h, objects, num_objects_list, cards[i].type, ARENA_DIMENSIONS))
                         {
                             /* Créer une boule avec la position de la souris et une vitesse aléatoire */
                             Vect speed = (Vect){rand() % 1000 - 500, rand() % 1000 - 500};
 
-                            createBall(renderer, objects, 60, 20,
+
+
+                            createBall(renderer, objects, t_ball.w / 2, 20,
                                        (Vect){mouseXInArena, mouseYInArena},
                                        speed, 1, &nb_color_balls, num_objects_list, false);
                             cards[i].is_selected = false;
@@ -637,6 +379,28 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
                     }
                 }
             }
+            else if (event.type == SDL_MOUSEWHEEL || (event.type == SDL_KEYDOWN && (event.key.keysym.sym == SDLK_UP || event.key.keysym.sym == SDLK_DOWN)))
+            {
+                if (event.wheel.y < 0) // make the image smaller
+                {
+                    t_ball.w -= 10;
+                    t_ball.h -= 10;
+                }
+                else if (event.wheel.y > 0) // make the image bigger
+                {
+                    t_ball.w += 10;
+                    t_ball.h += 10;
+                }
+
+                t_ball.w = (t_ball.w - 10) % 100 + 10;
+                t_ball.h = (t_ball.h - 10) % 100 + 10;
+
+                int mouseXInArena = mousePos.x - (SCREEN_WIDTH - ARENA_WIDTH) / 10;
+                int mouseYInArena = mousePos.y - (SCREEN_HEIGHT - ARENA_HEIGHT) / 2;
+
+                t_ball.x = mouseXInArena - t_ball.w / 2;
+                t_ball.y = mouseYInArena - t_ball.h / 2;
+            }
             else if (event.type == SDL_MOUSEMOTION)
             {
 
@@ -646,8 +410,8 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
                 int mouseXInArena = mousePos.x - (SCREEN_WIDTH - ARENA_WIDTH) / 10;
                 int mouseYInArena = mousePos.y - (SCREEN_HEIGHT - ARENA_HEIGHT) / 2;
 
-                t_ball.x = mouseXInArena - 30;
-                t_ball.y = mouseYInArena - 30;
+                t_ball.x = mouseXInArena - t_ball.w / 2;
+                t_ball.y = mouseYInArena - t_ball.h / 2;
             }
         }
 
@@ -655,8 +419,8 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
 
         // Gestion du framerate
         Uint64 currentTime = SDL_GetTicks64();
-        elapsedTime = currentTime - frameTime;
-        frameTime = SDL_GetTicks64();
+        elapsedTime = currentTime - lastTime;
+        lastTime = SDL_GetTicks64();
         frameCount++;
 
         if (currentTime - lastTime_cartes >= 5000 && (!cards[3].exist))
@@ -666,11 +430,11 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
             cards[3].exist = true;
         }
 
-        if (currentTime - lastTime >= 2000)
+        if (currentTime - lastTimeAI >= 2000)
         {
             printf("FPS: %d\n", frameCount / 2);
             frameCount = 0;
-            lastTime = currentTime;
+            lastTimeAI = currentTime;
 
             // Probabilité d'apparition d'une boule blanche (par rapport au nombre de boules blanches et noires)
 
@@ -695,7 +459,7 @@ int mainGame(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *window,
         
 
         // Mise à jour des boules
-        updateObjects(elapsedTime, objects, num_objects_list, &nb_color_balls);
+        updateObjects(elapsedTime, objects, num_objects_list, &nb_color_balls, ARENA_DIMENSIONS);
 
 
 
@@ -877,54 +641,4 @@ bool replayScreen(SDL_Texture **textures, SDL_Renderer *renderer, SDL_Window *wi
     destroyText(&replayText);
 
     return startGame;
-}
-
-void wallCollision(Object *ball, Object *wall)
-{
-
-    // On suppose que la collision est déjà détectée
-
-    double distanceX = abs(ball->position.x - wall->position.x) - wall->rect.w / 2;
-    double distanceY = abs(ball->position.y - wall->position.y) - wall->rect.h / 2;
-
-    if (distanceX <= 0 && distanceY > 0)
-    {
-        ball->speed.y *= -1;
-        return;
-    }
-
-    if (distanceX > 0 && distanceY <= 0)
-    {
-        ball->speed.x *= -1;
-        return;
-    }
-    
-    // Gestion des coins
-    // 1. Trouver le coin le plus proche (parmis les 4 coins)
-    Vect nearestCorner = (Vect) {wall->position.x + wall->rect.w / 2, wall->position.y + wall->rect.h / 2};
-
-    for (int i = 0; i < 4; i++)
-    {
-        Vect corner = (Vect){wall->position.x + (i % 2 == 0 ? -1 : 1) * (wall->rect.w / 2), wall->position.y + (i / 2 == 0 ? -1 : 1) * (wall->rect.h / 2)};
-        if (distance(ball->position, corner) <= distance(ball->position, nearestCorner))
-        {
-            nearestCorner = corner;
-        }
-    }
-
-    // Calcul de l'angle entre le vecteur vitesse et le vecteur de collision
-
-    Vect collisionVector = addVect(ball->position, nearestCorner, -1);
-    double angle = angleBetween(ball->speed, collisionVector);
-
-    // Calcul de la nouvelle vitesse
-
-    double speed = norm(ball->speed);
-
-    Vect newSpeed = rotateVect(ball->speed, 2 * angle);
-
-    newSpeed.x *= -1; // Inversion de la vitesse
-    newSpeed.y *= -1;
-
-    ball->speed = newSpeed;
 }
